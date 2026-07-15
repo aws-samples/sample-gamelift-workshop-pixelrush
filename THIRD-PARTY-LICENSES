@@ -1,0 +1,21 @@
+# Third-Party Licenses and Asset Attribution
+
+This project is licensed under the terms in the root LICENSE file.
+
+## Bundled assets
+
+### Car sprites (`frontend/public/cars/*.png`)
+
+The car sprites are original pixel art created for this workshop. They are
+covered by the root LICENSE (Copyright Amazon.com, Inc. or its affiliates).
+Filenames are generic and describe the vehicle class/color only
+(e.g. `sedan-white.png`, `supercar-red.png`); they are not derived from, and
+do not depict, any real-world manufacturer's trademarked designs.
+
+No third-party image, font, or audio assets are bundled in this repository.
+
+## Third-party software dependencies
+
+Runtime and build dependencies (npm, Go modules) are declared in the
+respective `package.json` / `go.mod` files and retain their own upstream
+licenses. Refer to each dependency's license for terms.

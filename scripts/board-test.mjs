@@ -1,0 +1,16 @@
+import { chromium } from 'playwright';
+const site = 'https://d3f7s31xicsud5.cloudfront.net';
+const browser = await chromium.launch();
+const page = await browser.newPage({ viewport: { width: 960, height: 640 } });
+page.on('pageerror', (e) => console.log('[pageerror]', e.message));
+await page.goto(site);
+await page.waitForSelector('#name', { timeout: 15000 });
+await page.fill('#name', `Board${Date.now() % 100000}`);
+await page.fill('#password', 'gamelift');
+await page.keyboard.press('Enter');
+await page.waitForFunction(() => window.__game?.scene.isActive('Lobby'), null, { timeout: 20000 });
+await page.evaluate(() => window.__game.scene.getScene('Lobby').scene.start('Leaderboard'));
+await new Promise((r) => setTimeout(r, 5000));
+await page.screenshot({ path: '/Users/ruofeima/code/gamelift-workshop/scripts/shots/layout-3-board.png' });
+await browser.close();
+console.log('done');

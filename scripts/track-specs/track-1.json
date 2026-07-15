@@ -1,0 +1,11 @@
+{
+  "id": "track-1",
+  "name": "Sunny Boulevard",
+  "length": 12000,
+  "baseSpeed": 300,
+  "gapMin": 320,
+  "gapMax": 520,
+  "maxPerRow": 2,
+  "movingRatio": 0.6,
+  "seed": 11
+}

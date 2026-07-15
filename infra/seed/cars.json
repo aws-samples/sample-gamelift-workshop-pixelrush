@@ -1,0 +1,10 @@
+[
+  { "carId": "sedan-white", "name": "The Beige Legend", "price": 220, "speedBonus": 1.0, "handling": 3, "spriteKey": "sedan-white", "description": "Outsells everything, outruns nothing. Will survive the apocalypse." },
+  { "carId": "compact-blue", "name": "Herbie's Cousin", "price": 250, "speedBonus": 0.98, "handling": 3, "spriteKey": "compact-blue", "description": "Round, cheerful, and secretly plotting. Charm over speed." },
+  { "carId": "coupe-navy", "name": "The Drift Sofa", "price": 750, "speedBonus": 1.04, "handling": 4, "spriteKey": "coupe-navy", "description": "A boxy sedan that thinks it's a race car. It's right." },
+  { "carId": "roadster-silver", "name": "Gullwing Grandpa", "price": 1100, "speedBonus": 1.05, "handling": 4, "spriteKey": "roadster-silver", "description": "Doors open upward, wallet opens downward. Timeless class." },
+  { "carId": "sports-red", "name": "Rear-Engine Rebel", "price": 1150, "speedBonus": 1.08, "handling": 5, "spriteKey": "sports-red", "description": "Put the engine in the wrong place for 60 years. Still winning." },
+  { "carId": "supercar-red", "name": "Prancing Pony", "price": 3000, "speedBonus": 1.11, "handling": 5, "spriteKey": "supercar-red", "description": "Loud, red, and allergic to speed limits. Approach with earplugs." },
+  { "carId": "supercar-green", "name": "Angry Wedge", "price": 4200, "speedBonus": 1.13, "handling": 4, "spriteKey": "supercar-green", "description": "A raging bull with scissor doors and zero chill." },
+  { "carId": "hypercar-darkblue", "name": "The Money Furnace", "price": 17000, "speedBonus": 1.15, "handling": 4, "spriteKey": "hypercar-darkblue", "description": "1001 hp. Burns fuel, tires, and your life savings. Save up." }
+]

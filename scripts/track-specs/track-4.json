@@ -1,0 +1,11 @@
+{
+  "id": "track-4",
+  "name": "Volcano Autobahn",
+  "length": 18000,
+  "baseSpeed": 570,
+  "gapMin": 210,
+  "gapMax": 340,
+  "maxPerRow": 3,
+  "movingRatio": 0.75,
+  "seed": 44
+}

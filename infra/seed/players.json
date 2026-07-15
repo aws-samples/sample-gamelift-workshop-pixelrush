@@ -1,0 +1,10 @@
+[
+  { "templateId": "1", "level": 1, "coins": 300, "titles": ["Rookie"], "ownedCars": ["sedan-white"], "selectedCar": "sedan-white", "completedTracks": [] },
+  { "templateId": "2", "level": 2, "coins": 500, "titles": ["Sunday Driver"], "ownedCars": ["compact-blue"], "selectedCar": "compact-blue", "completedTracks": [] },
+  { "templateId": "3", "level": 3, "coins": 800, "titles": ["Gearhead"], "ownedCars": ["sedan-white"], "selectedCar": "sedan-white", "completedTracks": [] },
+  { "templateId": "4", "level": 4, "coins": 1200, "titles": ["Speed Demon"], "ownedCars": ["coupe-navy"], "selectedCar": "coupe-navy", "completedTracks": [] },
+  { "templateId": "5", "level": 5, "coins": 1600, "titles": ["Drift Prodigy"], "ownedCars": ["roadster-silver"], "selectedCar": "roadster-silver", "completedTracks": [] },
+  { "templateId": "6", "level": 6, "coins": 2200, "titles": ["Night Racer"], "ownedCars": ["sports-red"], "selectedCar": "sports-red", "completedTracks": [] },
+  { "templateId": "7", "level": 7, "coins": 3200, "titles": ["Circuit Ace"], "ownedCars": ["supercar-red"], "selectedCar": "supercar-red", "completedTracks": [] },
+  { "templateId": "8", "level": 8, "coins": 4500, "titles": ["Street King"], "ownedCars": ["supercar-green"], "selectedCar": "supercar-green", "completedTracks": [] }
+]

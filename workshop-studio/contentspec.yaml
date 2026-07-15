@@ -1,0 +1,45 @@
+version: 2.0
+
+defaultLocaleCode: en-US
+localeCodes:
+  - en-US
+  - zh-CN
+
+# Deployed automatically into Workshop Studio-provisioned accounts (AWS events):
+# a browser IDE dev machine that also serves as the GameLift Anywhere compute
+# in Module 3. Participants in their own accounts skip this (BYOA path in Setup).
+infrastructure:
+  cloudformationTemplates:
+    - templateLocation: static/infrastructure/workshop-studio.yaml
+      label: gamelift-workshop-devmachine
+      participantVisibleStackOutputs:
+        - CodeServerURL
+        - CodeServerPassword
+        - InstancePublicIp
+
+awsAccountConfig:
+  accountSources:
+    - WorkshopStudio
+  # Participants deploy CDK stacks (GameLift fleets/builds, CloudFront, API
+  # Gateway, Lambda, DynamoDB, SNS). Actual deployment happens through the
+  # cdk-* bootstrap roles; the participant policy grants the workshop services
+  # plus IAM scoped to cdk-*/PixelRush* roles — no blanket admin.
+  participantRole:
+    iamPolicies:
+      - static/iam/participant-policy.json
+  regionConfiguration:
+    minAccessibleRegions: 1
+    maxAccessibleRegions: 3
+    accessibleRegions:
+      recommended:
+        - us-east-1
+      optional:
+        - us-west-2
+        - ap-northeast-1
+    # The dev-machine template is region-agnostic (SSM public AMI parameter,
+    # dynamic GetAZs); us-west-2 is the resiliency fallback.
+    deployableRegions:
+      recommended:
+        - us-east-1
+      optional:
+        - us-west-2

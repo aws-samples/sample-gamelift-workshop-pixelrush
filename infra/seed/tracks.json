@@ -1,0 +1,6 @@
+[
+  { "trackId": "track-1", "name": "Sunny Loop", "difficulty": 1, "order": 1, "laps": 3, "requiresTrackId": null, "description": "A friendly countryside loop. Learn the ropes." },
+  { "trackId": "track-2", "name": "Harbor Sprint", "difficulty": 2, "order": 2, "laps": 3, "requiresTrackId": "track-1", "description": "Tight corners between the cranes and containers." },
+  { "trackId": "track-3", "name": "Neon Circuit", "difficulty": 3, "order": 3, "laps": 3, "requiresTrackId": "track-2", "description": "Downtown at midnight. Watch the traffic." },
+  { "trackId": "track-4", "name": "Volcano Rim", "difficulty": 4, "order": 4, "laps": 3, "requiresTrackId": "track-3", "description": "One mistake and you are toast. Literally." }
+]

@@ -1,0 +1,11 @@
+{
+  "id": "track-3",
+  "name": "Neon Expressway",
+  "length": 16000,
+  "baseSpeed": 470,
+  "gapMin": 240,
+  "gapMax": 400,
+  "maxPerRow": 3,
+  "movingRatio": 0.7,
+  "seed": 33
+}

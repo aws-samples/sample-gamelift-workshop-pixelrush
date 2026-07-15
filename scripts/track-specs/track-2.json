@@ -1,0 +1,11 @@
+{
+  "id": "track-2",
+  "name": "Harbor Freeway",
+  "length": 14000,
+  "baseSpeed": 380,
+  "gapMin": 280,
+  "gapMax": 460,
+  "maxPerRow": 2,
+  "movingRatio": 0.65,
+  "seed": 22
+}
