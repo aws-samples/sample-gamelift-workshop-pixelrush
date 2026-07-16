@@ -33,14 +33,24 @@ ln -sf /usr/local/go/bin/go /usr/local/bin/go
 ln -sf /usr/local/go/bin/gofmt /usr/local/bin/gofmt
 
 # --- Node.js --------------------------------------------------------------
-rpm --import https://rpm.nodesource.com/gpgkey/nodesource-repo.gpg.key
+# On a freshly booted instance cloud-init/dnf may still hold the rpm lock, so
+# wait for it to clear (up to ~2.5 min) before importing the key / installing.
+for i in $(seq 1 30); do
+  if ! fuser /var/lib/rpm/.rpm.lock >/dev/null 2>&1 \
+     && ! fuser /var/cache/dnf/*.pid >/dev/null 2>&1; then
+    break
+  fi
+  echo "waiting for rpm/dnf lock to clear ($i)..."
+  sleep 5
+done
+rpm --import https://rpm.nodesource.com/gpgkey/ns-operations-public.key
 cat > /etc/yum.repos.d/nodesource-nodejs.repo << 'REPO'
 [nodesource-nodejs]
 name=Node.js Packages
 baseurl=https://rpm.nodesource.com/pub_20.x/nodistro/nodejs/x86_64
 enabled=1
 gpgcheck=1
-gpgkey=https://rpm.nodesource.com/gpgkey/nodesource-repo.gpg.key
+gpgkey=https://rpm.nodesource.com/gpgkey/ns-operations-public.key
 REPO
 dnf install -y nodejs
 
