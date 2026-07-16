@@ -10,8 +10,9 @@ access code. Otherwise skip to **Path B: Own Account**.
 
 ## 1. Join the event
 
-1. Open [Workshop Studio](https://catalog.workshops.aws/join) and enter the
-   **access code** provided by your instructor.
+1. Open [Workshop Studio](https://catalog.workshops.aws/join) — AWS's official
+   platform for hosting hands-on workshops in temporary event accounts — and
+   enter the **access code** provided by your instructor.
 2. Accept the terms and click **Join event**. You now have a temporary AWS
    account — nothing you do today costs you anything.
 

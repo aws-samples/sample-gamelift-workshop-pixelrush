@@ -155,16 +155,17 @@ export class GameLiftStack extends cdk.Stack {
         // LATENCY first; LOCATION requires an explicit locationOrder (deploy
         // region preferred, then extras) as the latency tie-breaker; then
         // DESTINATION order last.
+        //
+        // No playerLatencyPolicies here on purpose: a hard latency cap makes a
+        // match unplaceable when every candidate region exceeds it (a player on
+        // a VPN / far from all regions never gets seated). Priority ordering
+        // already steers each match to its lowest-latency region; we prefer
+        // "always placed, in the best available region" over "placed only if
+        // under a fixed threshold."
         priorityConfiguration: {
           priorityOrder: ['LATENCY', 'LOCATION', 'DESTINATION'],
           locationOrder: [this.region, ...extraRegions],
         },
-        // Guardrail: reject placements where any player would exceed the cap.
-        // Start strict, then relax so nobody waits forever on a bad network.
-        playerLatencyPolicies: [
-          { maximumIndividualPlayerLatencyMilliseconds: 100, policyDurationSeconds: 30 },
-          { maximumIndividualPlayerLatencyMilliseconds: 200 },
-        ],
       });
 
       new cdk.CfnOutput(this, 'Ec2FleetId', { value: ec2Fleet.attrFleetId });

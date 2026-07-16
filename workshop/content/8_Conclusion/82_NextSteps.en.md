@@ -11,7 +11,7 @@ weight: 82
 | **Match backfill** | Fill empty slots in running sessions (we deliberately disabled it — races don't take late joiners, but battle royales do) |
 | **FleetIQ / Spot** | Cut fleet cost up to 70% with Spot instances managed for viability |
 | **Containers fleets** | Package the server as a container image instead of a build |
-| **Player identity** | Replace the workshop password with real auth — see the [Custom Game Backend guidance](https://github.com/aws-solutions-library-samples/guidance-for-custom-game-backend-hosting-on-aws) (Steam/Apple/Google sign-in, JWT) |
+| **Player identity** | Replace the workshop password with real auth — see the [Custom Game Backend guidance](https://github.com/aws-solutions-library-samples/guidance-for-custom-game-backend-hosting-on-aws), an AWS Solutions Library reference implementation for game backends with player identity (Steam/Apple/Google sign-in, JWT) |
 | **Session metrics & autoscaling** | Target-tracking on `PercentAvailableGameSessions` |
 
 ## Reference material

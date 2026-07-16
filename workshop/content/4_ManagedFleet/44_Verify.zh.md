@@ -41,6 +41,21 @@ FLEET_STATE_ACTIVE               ← 可以接客了
 npx cdk deploy PixelRushFrontendStack --require-approval never
 ```
 
+预期输出——部署结尾会打印该 stack 的输出：
+
+```
+✅  PixelRushFrontendStack
+
+Outputs:
+PixelRushFrontendStack.SiteUrl = https://dxxxxxxxxxxxxx.cloudfront.net
+Stack ARN: arn:aws:cloudformation:us-east-1:123456789012:stack/PixelRushFrontendStack/...
+```
+
+{{% notice info %}}
+这次重新部署更新的是 CloudFront 分发，改动需 **5–10 分钟**才能传播到所有边缘节点。
+命令刚返回时你可能仍被送到旧的缓存页面——对战前请等几分钟并强制刷新。
+{{% /notice %}}
+
 统一前端本身不用改——它仍然调用你同一个 API，只是现在比赛被路由到托管 fleet
 而不是 Anywhere。
 

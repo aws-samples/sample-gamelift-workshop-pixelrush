@@ -43,6 +43,23 @@ it picks up the updated backend:
 npx cdk deploy PixelRushFrontendStack --require-approval never
 ```
 
+Expected output — the deploy ends with the stack's outputs:
+
+```
+✅  PixelRushFrontendStack
+
+Outputs:
+PixelRushFrontendStack.SiteUrl = https://dxxxxxxxxxxxxx.cloudfront.net
+Stack ARN: arn:aws:cloudformation:us-east-1:123456789012:stack/PixelRushFrontendStack/...
+```
+
+{{% notice info %}}
+This redeploy updates a CloudFront distribution, so the change takes **5–10
+minutes** to propagate to all edge locations. Right after the command returns
+you may still be served the old cached page — wait a few minutes and hard-refresh
+before racing.
+{{% /notice %}}
+
 The unified frontend itself needs no change — it still calls your same API,
 which now routes races to the managed fleet instead of Anywhere.
 

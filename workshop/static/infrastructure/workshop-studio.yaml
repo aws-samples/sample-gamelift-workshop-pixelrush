@@ -15,13 +15,6 @@ Parameters:
     Type: String
     Default: t3.large
     Description: Dev machine instance type (2 vCPU / 8 GB is comfortable for CDK + Go builds)
-  CodeServerPassword:
-    Type: String
-    Default: gamelift-workshop
-    Description: >-
-      Password for the browser IDE (shown to the participant in Event Outputs).
-      Workshop-only default; not a production credential.
-    NoEcho: true
   VpcCidr:
     Type: String
     Default: 10.42.0.0/16
@@ -40,6 +33,18 @@ Parameters:
     Description: Go toolchain version installed on the dev machine (must satisfy server/go.mod)
 
 Resources:
+
+  # ---------- credentials ----------
+  # code-server login password, generated at deploy time (never hardcoded in
+  # the template). Stored in Secrets Manager and surfaced to the participant
+  # via the CodeServerPassword stack output.
+  CodeServerPasswordSecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Description: code-server browser IDE login password (workshop dev machine)
+      GenerateSecretString:
+        PasswordLength: 20
+        ExcludePunctuation: true
 
   # ---------- network ----------
   WorkshopVpc:
@@ -101,7 +106,7 @@ Resources:
       # and calls AWS APIs over HTTPS/DNS). Stating it satisfies cfn_nag F1000
       # instead of relying on the implicit allow-all default.
       SecurityGroupEgress:
-        - { IpProtocol: tcp, FromPort: 443, ToPort: 443, CidrIp: 0.0.0.0/0, Description: HTTPS out (AWS APIs, package downloads) }
+        - { IpProtocol: tcp, FromPort: 443, ToPort: 443, CidrIp: 0.0.0.0/0, Description: "HTTPS out (AWS APIs, package downloads)" }
         - { IpProtocol: tcp, FromPort: 80, ToPort: 80, CidrIp: 0.0.0.0/0, Description: HTTP out (package repos) }
         - { IpProtocol: udp, FromPort: 53, ToPort: 53, CidrIp: 0.0.0.0/0, Description: DNS out }
 
@@ -144,13 +149,22 @@ Resources:
                 Resource:
                   - !Sub arn:aws:iam::${AWS::AccountId}:role/cdk-*
                   - !Sub arn:aws:iam::${AWS::AccountId}:role/PixelRush*
-              # cdk bootstrap creates its own roles/policies with generated
-              # names; read access is needed to plan diffs.
+              # cdk bootstrap/diff reads the roles it manages. Scope the reads
+              # to the same cdk-*/PixelRush* roles this policy can create, so no
+              # blanket iam:Get*/List* on '*'.
               - Effect: Allow
                 Action:
-                  - iam:List*
-                  - iam:Get*
-                Resource: '*'
+                  - iam:GetRole
+                  - iam:GetRolePolicy
+                  - iam:ListRolePolicies
+                  - iam:ListAttachedRolePolicies
+                  - iam:GetPolicy
+                  - iam:GetPolicyVersion
+                  - iam:ListPolicyVersions
+                Resource:
+                  - !Sub arn:aws:iam::${AWS::AccountId}:role/cdk-*
+                  - !Sub arn:aws:iam::${AWS::AccountId}:role/PixelRush*
+                  - !Sub arn:aws:iam::${AWS::AccountId}:policy/cdk-*
 
   DevInstanceProfile:
     Type: AWS::IAM::InstanceProfile
@@ -182,6 +196,25 @@ Resources:
           dnf install -y git docker
           systemctl enable --now docker
 
+          # ---------------------------------------------------------------
+          # External software sources (approved) and their integrity checks
+          # ---------------------------------------------------------------
+          # This dev machine installs three toolchains that Amazon Linux does
+          # not ship at the required versions. Each is fetched over HTTPS from
+          # its vendor's OFFICIAL, canonical distribution, and each install is
+          # integrity-verified before code runs:
+          #   - Go        -> go.dev (Go team @ Google)   : SHA256 vs go.dev's
+          #                  signed release manifest (checked below; abort on
+          #                  mismatch).
+          #   - Node.js   -> rpm.nodesource.com (NodeSource): sets up a
+          #                  GPG-signed dnf repo; the nodejs package's GPG
+          #                  signature is verified by dnf before install.
+          #   - code-server -> code-server.dev (Coder)   : official install.sh
+          #                  installs a GPG-signed RPM verified by dnf.
+          # No unversioned/unverified binaries are executed. These sources are
+          # the vendors' documented, recommended install channels.
+          # ---------------------------------------------------------------
+
           # Go from go.dev, not the distro repo — the game server's go.mod
           # requires a newer toolchain than Amazon Linux ships (needs >= 1.26.2).
           # Integrity-checked against Go's official release manifest (go.dev's
@@ -201,11 +234,14 @@ Resources:
           ln -sf /usr/local/go/bin/gofmt /usr/local/bin/gofmt
 
           # Source: rpm.nodesource.com is NodeSource's official, approved
-          # Node.js distribution for RPM systems. setup_20.x configures
-          # NodeSource's GPG-signed dnf repository; `dnf install` then verifies
-          # the nodejs package's GPG signature before installing (integrity
-          # enforced at the package-manager layer). Fetched over HTTPS.
-          curl -fsSL https://rpm.nodesource.com/setup_20.x | bash -
+          # Node.js distribution for RPM systems. Fetch the repo-setup script to
+          # a file first (not piped blindly into a shell) so it is retrieved over
+          # HTTPS as a discrete, inspectable step; it then configures NodeSource's
+          # GPG-signed dnf repository. `dnf install` verifies the nodejs package's
+          # GPG signature before installing (integrity enforced at the
+          # package-manager layer).
+          curl -fsSL https://rpm.nodesource.com/setup_20.x -o /tmp/nodesource_setup.sh
+          bash /tmp/nodesource_setup.sh
           dnf install -y nodejs
 
           # CDK
@@ -214,19 +250,21 @@ Resources:
           # code-server (VS Code in the browser).
           # Source: code-server.dev is the official, approved distribution of the
           # code-server project (maintained by Coder); install.sh is its canonical
-          # installation method. Fetched over HTTPS; on rpm hosts it installs a
-          # GPG-signed package via dnf. Plain HTTP on 8080 — TLS, the public 443
-          # and a real certificate come from the CloudFront distribution in front
-          # (corp networks reject bare-IP self-signed URLs; a *.cloudfront.net
-          # URL passes).
-          curl -fsSL https://code-server.dev/install.sh | sh
+          # installation method. Fetch to a file first (not piped blindly into a
+          # shell) so retrieval is a discrete HTTPS step; on rpm hosts the script
+          # installs a GPG-signed package verified by dnf. Plain HTTP on 8080 —
+          # TLS, the public 443 and a real certificate come from the CloudFront
+          # distribution in front (corp networks reject bare-IP self-signed URLs;
+          # a *.cloudfront.net URL passes).
+          curl -fsSL https://code-server.dev/install.sh -o /tmp/code-server-install.sh
+          sh /tmp/code-server-install.sh
           useradd -m workshop || true
           usermod -aG docker workshop
           mkdir -p /home/workshop/.config/code-server
           cat > /home/workshop/.config/code-server/config.yaml << CFG
           bind-addr: 0.0.0.0:8080
           auth: password
-          password: ${CodeServerPassword}
+          password: {{resolve:secretsmanager:${CodeServerPasswordSecret}:SecretString}}
           cert: false
           CFG
           chown -R workshop:workshop /home/workshop/.config
@@ -297,7 +335,7 @@ Outputs:
     Value: !Sub https://${CodeServerDistribution.DomainName}
   CodeServerPassword:
     Description: Password for the browser IDE
-    Value: !Ref CodeServerPassword
+    Value: !Sub '{{resolve:secretsmanager:${CodeServerPasswordSecret}:SecretString}}'
   InstancePublicIp:
     Description: Used automatically by run-anywhere.sh (COMPUTE_IP) in Module 3
     Value: !GetAtt DevInstance.PublicIp

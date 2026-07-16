@@ -37,6 +37,17 @@ cd infra
 npx cdk deploy PixelRushGameLiftStack -c stage=ec2 --require-approval never
 ```
 
+预期输出——部署完成时会看到该 stack 的输出（fleet ID 和 queue 名）：
+
+```
+✅  PixelRushGameLiftStack
+
+Outputs:
+PixelRushGameLiftStack.Ec2FleetId = fleet-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+PixelRushGameLiftStack.Ec2QueueName = PixelRushQueue
+Stack ARN: arn:aws:cloudformation:us-east-1:123456789012:stack/PixelRushGameLiftStack/...
+```
+
 `-c stage=ec2` 标志在你已有的 stack 上扩展三个资源：
 
 | 资源 | 发生了什么 |

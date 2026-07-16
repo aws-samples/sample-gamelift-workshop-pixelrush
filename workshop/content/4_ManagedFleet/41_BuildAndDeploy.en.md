@@ -38,6 +38,18 @@ cd infra
 npx cdk deploy PixelRushGameLiftStack -c stage=ec2 --require-approval never
 ```
 
+Expected output — when the deploy finishes you'll see the stack's outputs (the
+fleet ID and queue name):
+
+```
+✅  PixelRushGameLiftStack
+
+Outputs:
+PixelRushGameLiftStack.Ec2FleetId = fleet-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+PixelRushGameLiftStack.Ec2QueueName = PixelRushQueue
+Stack ARN: arn:aws:cloudformation:us-east-1:123456789012:stack/PixelRushGameLiftStack/...
+```
+
 The `-c stage=ec2` flag extends the stack you already have with three resources:
 
 | Resource | What happens |

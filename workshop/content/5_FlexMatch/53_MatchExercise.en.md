@@ -14,6 +14,17 @@ cd infra
 npx cdk deploy PixelRushGameLiftStack PixelRushBackendStack -c stage=ec2-match --require-approval never
 ```
 
+Expected output — both stacks report `UPDATE_COMPLETE` and the matchmaking
+config name is shown:
+
+```
+✅  PixelRushGameLiftStack
+✅  PixelRushBackendStack
+
+Outputs:
+PixelRushGameLiftStack.Ec2MatchmakingConfig = PixelRushMatchEc2{1|2|3|4}
+```
+
 ~2 minutes (the fleet already exists — this only adds matchmaking configs and
 updates the Lambda). The `stage=ec2-match` flag:
 

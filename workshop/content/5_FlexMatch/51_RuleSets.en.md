@@ -58,3 +58,30 @@ minutes over a decent match in 20 seconds.
 
 The workshop deploys four rule sets (sizes 1/2/3/4) — identical except for the
 team size. Size 1 is what powers the instant "solo vs NPC" server match.
+
+## Common rule set templates
+
+Ours is a simple free-for-all racer, but FlexMatch rule sets scale to very
+different game shapes. These are the patterns you'll reach for most often — think
+of them as starting templates rather than a fixed catalog:
+
+| Template | What it matches | Typical genre |
+|---|---|---|
+| **Free-for-all** | One team, N players, ranked by finish — no sides. This workshop's racer. | Racing, battle royale, FFA arena |
+| **Team vs team (balanced)** | Two (or more) equal teams; balance skill *across* teams so the match is fair. | MOBA, team shooter, sports |
+| **Skill-based (SBMM)** | `distance` rules on a skill/MMR attribute keep players within a rating band; expansions widen it over time. | Ranked / competitive ladders |
+| **Latency-aware** | A `latency` rule caps region latency per player so a match only forms among players who share a fast region. | Any real-time online game |
+| **Role / composition** | Players declare a role (tank/healer/DPS); rules require a valid team composition, not just a head count. | Class-based shooters, RPGs |
+| **Party / pre-made** | Keep a pre-formed group together and match it against a group of comparable size and skill. | Co-op, squad-based games |
+
+Each template is just a different combination of the same building blocks you
+saw above — `teams`, `playerAttributes`, `rules` (`distance` / `comparison` /
+`latency`), and `expansions`. Our racer uses free-for-all + a light skill rule
+(`SimilarLevel`); adding a latency rule or a second team is an incremental edit
+to the same JSON, not a rewrite.
+
+{{% notice tip %}}
+Start from the simplest template that fits your game and add rules only when a
+real fairness or experience problem shows up. Every rule you add is another
+constraint that can slow down matchmaking.
+{{% /notice %}}

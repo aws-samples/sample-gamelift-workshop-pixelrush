@@ -10,7 +10,8 @@ weight: 21
 
 ## 1. 加入活动
 
-1. 打开 [Workshop Studio](https://catalog.workshops.aws/join)，输入讲师提供的
+1. 打开 [Workshop Studio](https://catalog.workshops.aws/join)——AWS 官方的动手
+   实验托管平台，在临时活动账号中运行 workshop——输入讲师提供的
    **接入码（access code）**。
 2. 接受条款，点击 **Join event**。你获得一个临时 AWS 账号——今天的所有操作
    都不产生个人费用。

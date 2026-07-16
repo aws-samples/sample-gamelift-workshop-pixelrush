@@ -21,6 +21,25 @@ latencies are collected and used by FlexMatch to *match* compatible players; to
 have those same latencies drive the *placement* decision too, we give the queue
 a priority configuration.
 
+## Session placement
+
+When a match is ready, the queue decides *which location* to create the game
+session in. A queue's `PriorityConfiguration` orders four placement strategies;
+GameLift applies them in the order you list, each breaking the previous one's
+ties:
+
+1. **`LATENCY`** — prefer the location with the lowest average player latency.
+   Best for player experience in a latency-sensitive game.
+2. **`COST`** — prefer the cheapest location (by the instance type's price).
+   Useful when budget matters more than a few milliseconds.
+3. **`LOCATION`** — prefer locations in an explicit order you define
+   (`locationOrder`), e.g. keep traffic in a home region first.
+4. **`DESTINATION`** — prefer destinations in the order they're listed on the
+   queue.
+
+A real-time racer lives and dies by latency, so we put **`LATENCY`** first and
+use the others only as tie-breakers.
+
 ## The configuration — `PriorityConfiguration`
 
 Open **`infra/lib/gamelift-stack.ts`**, find `Ec2Queue`, and note the placement
@@ -40,13 +59,6 @@ const ec2Queue = new gamelift.CfnGameSessionQueue(this, 'Ec2Queue', {
     // LOCATION requires an explicit order (deploy region first, then extras).
     locationOrder: [this.region, ...extraRegions],
   },
-
-  // Guardrail: reject a placement where any player would exceed the cap.
-  // Start strict, then relax so every player still gets a race.
-  playerLatencyPolicies: [
-    { maximumIndividualPlayerLatencyMilliseconds: 100, policyDurationSeconds: 30 },
-    { maximumIndividualPlayerLatencyMilliseconds: 200 },
-  ],
 });
 ```
 
@@ -67,28 +79,6 @@ the previous rule's ties:
 With `LATENCY` first, placement follows player experience; the default without it
 is destination order, which is why our Singapore + Korea pair landed in
 `us-east-1`.
-
-### `playerLatencyPolicies` — a quality floor
-
-Latency-first placement pairs well with a *limit*, so a match is placed somewhere
-comfortable rather than simply the lowest of whatever is available. The policies
-above say:
-
-- For the first **30 seconds**, only place if **every** player is under
-  **100 ms** — hold out for a genuinely good session.
-- After that, relax the cap to **200 ms** so a player on a slower network still
-  gets a race promptly.
-
-## Where the latency numbers come from
-
-Placement can only be latency-aware if the client *reports* latency. Two pieces
-make that work in this workshop:
-
-1. The browser probes each fleet region and sends the measurements as
-   `LatencyInMs` on `StartMatchmaking` (see `frontend/src/latency.ts`).
-2. The matchmaking Lambda **backfills** any region the client couldn't measure
-   with a high-but-usable default (`backend/src/request-matchmaking.ts`), so a
-   failed probe never leaves a region absent — which would make it unplaceable.
 
 :::alert{type=info}
 Latency-aware placement only changes behavior once the fleet has **more than
@@ -111,5 +101,5 @@ You can also inspect the queue directly:
 
 ```bash
 aws gamelift describe-game-session-queues --names PixelRushQueue \
-  --query "GameSessionQueues[0].{priority:PriorityConfiguration,latency:PlayerLatencyPolicies}"
+  --query "GameSessionQueues[0].PriorityConfiguration"
 ```

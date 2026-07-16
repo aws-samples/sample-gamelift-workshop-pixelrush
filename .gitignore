@@ -7,6 +7,7 @@ server/dist/
 infra/cdk.out/
 workshop/public/
 *.tsbuildinfo
+workshop-studio/
 
 # --- CDK / AWS local state ---
 infra/cdk.context.json

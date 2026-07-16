@@ -13,6 +13,16 @@ cd infra
 npx cdk deploy PixelRushGameLiftStack PixelRushBackendStack -c stage=ec2-match --require-approval never
 ```
 
+预期输出——两个 stack 都报告 `UPDATE_COMPLETE`，并显示匹配配置名：
+
+```
+✅  PixelRushGameLiftStack
+✅  PixelRushBackendStack
+
+Outputs:
+PixelRushGameLiftStack.Ec2MatchmakingConfig = PixelRushMatchEc2{1|2|3|4}
+```
+
 约 2 分钟（fleet 已存在——这次只是加匹配配置、更新 Lambda）。`stage=ec2-match`
 这个标志会：
 
