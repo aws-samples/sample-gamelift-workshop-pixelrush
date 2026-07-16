@@ -4,7 +4,23 @@
     {
       "Sid": "DriveCloudFormation",
       "Effect": "Allow",
-      "Action": "cloudformation:*",
+      "Action": [
+        "cloudformation:CreateStack",
+        "cloudformation:UpdateStack",
+        "cloudformation:DeleteStack",
+        "cloudformation:CreateChangeSet",
+        "cloudformation:ExecuteChangeSet",
+        "cloudformation:DeleteChangeSet",
+        "cloudformation:DescribeChangeSet",
+        "cloudformation:DescribeStacks",
+        "cloudformation:DescribeStackEvents",
+        "cloudformation:DescribeStackResources",
+        "cloudformation:GetTemplate",
+        "cloudformation:GetTemplateSummary",
+        "cloudformation:ListStackResources",
+        "cloudformation:TagResource",
+        "cloudformation:UntagResource"
+      ],
       "Resource": [
         "arn:aws:cloudformation:*:*:stack/PixelRush*/*",
         "arn:aws:cloudformation:*:*:stack/CDKToolkit/*"
@@ -71,7 +87,23 @@
     {
       "Sid": "CdkBootstrapEcr",
       "Effect": "Allow",
-      "Action": "ecr:*",
+      "Action": [
+        "ecr:CreateRepository",
+        "ecr:DeleteRepository",
+        "ecr:DescribeRepositories",
+        "ecr:SetRepositoryPolicy",
+        "ecr:GetRepositoryPolicy",
+        "ecr:PutLifecyclePolicy",
+        "ecr:PutImageScanningConfiguration",
+        "ecr:TagResource",
+        "ecr:BatchCheckLayerAvailability",
+        "ecr:GetDownloadUrlForLayer",
+        "ecr:BatchGetImage",
+        "ecr:PutImage",
+        "ecr:InitiateLayerUpload",
+        "ecr:UploadLayerPart",
+        "ecr:CompleteLayerUpload"
+      ],
       "Resource": "arn:aws:ecr:*:*:repository/cdk-*"
     },
     {
@@ -106,8 +138,8 @@
         "iam:DeleteRolePolicy"
       ],
       "Resource": [
-        "arn:aws:iam::*:role/cdk-*",
-        "arn:aws:iam::*:role/PixelRush*"
+        "arn:aws:iam::${aws:PrincipalAccount}:role/cdk-*",
+        "arn:aws:iam::${aws:PrincipalAccount}:role/PixelRush*"
       ]
     },
     {
@@ -115,8 +147,8 @@
       "Effect": "Allow",
       "Action": "iam:PassRole",
       "Resource": [
-        "arn:aws:iam::*:role/cdk-*",
-        "arn:aws:iam::*:role/PixelRush*"
+        "arn:aws:iam::${aws:PrincipalAccount}:role/cdk-*",
+        "arn:aws:iam::${aws:PrincipalAccount}:role/PixelRush*"
       ],
       "Condition": {
         "StringEquals": {
@@ -133,7 +165,7 @@
       "Sid": "AssumeCdkBootstrapRoles",
       "Effect": "Allow",
       "Action": "sts:AssumeRole",
-      "Resource": "arn:aws:iam::*:role/cdk-*"
+      "Resource": "arn:aws:iam::${aws:PrincipalAccount}:role/cdk-*"
     },
     {
       "Sid": "ReadOnlyAcrossWorkshopServices",

@@ -136,7 +136,9 @@ Resources:
           PolicyDocument:
             Version: '2012-10-17'
             Statement:
-              # Create/manage only the IAM roles the workshop's CDK app needs.
+              # Create/manage only the IAM roles the workshop's CDK app needs
+              # (account-scoped; the cdk-*/PixelRush* name wildcards match the
+              # roles CDK generates for its bootstrap + stacks).
               - Effect: Allow
                 Action:
                   - iam:CreateRole
@@ -148,10 +150,23 @@ Resources:
                   - iam:PutRolePolicy
                   - iam:DeleteRolePolicy
                   - iam:GetRolePolicy
-                  - iam:PassRole
                 Resource:
                   - !Sub arn:aws:iam::${AWS::AccountId}:role/cdk-*
                   - !Sub arn:aws:iam::${AWS::AccountId}:role/PixelRush*
+              # PassRole split out with a service condition so these roles can
+              # only be handed to the workshop's own AWS services, not anywhere.
+              - Effect: Allow
+                Action: iam:PassRole
+                Resource:
+                  - !Sub arn:aws:iam::${AWS::AccountId}:role/cdk-*
+                  - !Sub arn:aws:iam::${AWS::AccountId}:role/PixelRush*
+                Condition:
+                  StringEquals:
+                    iam:PassedToService:
+                      - cloudformation.amazonaws.com
+                      - gamelift.amazonaws.com
+                      - lambda.amazonaws.com
+                      - ec2.amazonaws.com
               # cdk bootstrap/diff reads the roles it manages. Scope the reads
               # to the same cdk-*/PixelRush* roles this policy can create, so no
               # blanket iam:Get*/List* on '*'.
