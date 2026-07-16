@@ -41,6 +41,20 @@ echo "{ \"wsNotifyUrl\": \"<粘贴-WsNotifyUrl>\" }" > ../frontend/public/config
 npx cdk deploy PixelRushFrontendStack --require-approval never
 ```
 
+构建前，先确认文件已写入且是合法 JSON——否则粘贴 URL 时的笔误会在后续步骤中静默失败：
+
+```bash
+cat ../frontend/public/config.json | python3 -m json.tool
+```
+
+预期——URL 被原样回显、格式化打印，且无解析错误：
+
+```json
+{
+    "wsNotifyUrl": "wss://yyyy.execute-api.us-east-1.amazonaws.com/prod"
+}
+```
+
 输出站点地址：
 
 ```

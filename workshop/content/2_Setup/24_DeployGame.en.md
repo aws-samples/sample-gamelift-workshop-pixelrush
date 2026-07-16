@@ -43,6 +43,21 @@ echo "{ \"wsNotifyUrl\": \"<PASTE-WsNotifyUrl-HERE>\" }" > ../frontend/public/co
 npx cdk deploy PixelRushFrontendStack --require-approval never
 ```
 
+Before the build, verify the file was written and is valid JSON — a typo in the
+pasted URL would otherwise fail silently later:
+
+```bash
+cat ../frontend/public/config.json | python3 -m json.tool
+```
+
+Expected — the URL echoed back, pretty-printed with no parse error:
+
+```json
+{
+    "wsNotifyUrl": "wss://yyyy.execute-api.us-east-1.amazonaws.com/prod"
+}
+```
+
 Outputs the site URL:
 
 ```

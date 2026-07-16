@@ -16,10 +16,10 @@ npx cdk deploy PixelRushGameLiftStack --require-approval never
 
 ## 2. 把你的机器注册为 fleet 算力
 
-一个脚本完成全部注册流程：
+第 1 步结束时你在 `infra/`。先回到仓库根目录，再运行脚本（脚本路径相对仓库根目录）：
 
 ```bash
-cd ..
+cd ..          # 从 infra/ 回到仓库根目录
 ./scripts/run-anywhere.sh
 ```
 

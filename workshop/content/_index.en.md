@@ -1,6 +1,6 @@
 ---
 
-title: "Hands-on Amazon GameLift"
+title: "Hands-on Amazon GameLift Servers"
 chapter: true
 weight: 1
 
@@ -80,7 +80,7 @@ for you.
 Running this workshop in your own account costs roughly **$0.20–0.50/hour**
 (mainly one or two `c5.large` GameLift instances), well under **$1** for a
 2-hour sitting **if you complete the cleanup module**. See
-[Amazon GameLift pricing](https://aws.amazon.com/gamelift/pricing/) and
+[Amazon GameLift Servers pricing](https://aws.amazon.com/gamelift/pricing/) and
 [EC2 pricing](https://aws.amazon.com/ec2/pricing/) for details. AWS-hosted
 events run in a provided temporary account at no cost to you.
 

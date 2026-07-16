@@ -40,6 +40,9 @@ Resources:
   # via the CodeServerPassword stack output.
   CodeServerPasswordSecret:
     Type: AWS::SecretsManager::Secret
+    # Workshop credential: delete with the stack (nothing to retain post-event).
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
     Properties:
       Description: code-server browser IDE login password (workshop dev machine)
       GenerateSecretString:
@@ -174,6 +177,21 @@ Resources:
   # ---------- dev machine ----------
   DevInstance:
     Type: AWS::EC2::Instance
+    # UserData resolves the code-server password via a
+    # {{resolve:secretsmanager:...}} dynamic reference; that runtime lookup does
+    # NOT create an implicit CloudFormation dependency, so declare it explicitly
+    # to guarantee the secret exists before the instance boots.
+    DependsOn: CodeServerPasswordSecret
+    # Workshop resource: replace/delete with the stack (no data to retain).
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
+    # Hold the stack in CREATE_IN_PROGRESS until UserData signals success, so
+    # downstream consumers (and participants) don't act on a half-provisioned
+    # dev machine. UserData runs cfn-signal at the end (and on failure via trap).
+    CreationPolicy:
+      ResourceSignal:
+        Count: 1
+        Timeout: PT20M
     Properties:
       InstanceType: !Ref InstanceType
       ImageId: '{{resolve:ssm:/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64}}'
@@ -193,7 +211,10 @@ Resources:
           # script dereferences $HOME and set -u would kill the whole script
           export HOME=/root
 
-          dnf install -y git docker
+          # Signal CloudFormation on exit: SUCCESS (0) or FAILURE otherwise, so
+          # the stack's CreationPolicy resolves instead of timing out silently.
+          dnf install -y git docker aws-cfn-bootstrap
+          trap 'rc=$?; /opt/aws/bin/cfn-signal -e $rc --stack ${AWS::StackName} --resource DevInstance --region ${AWS::Region} || true' EXIT
           systemctl enable --now docker
 
           # ---------------------------------------------------------------
@@ -270,13 +291,13 @@ Resources:
           chown -R workshop:workshop /home/workshop/.config
 
           # pre-clone the workshop repo + install dependencies. Drop the
-          # tutorial-authoring dirs (workshop/, workshop-studio/) — participants
-          # read the tutorial on the Workshop Studio site, not in the checkout.
+          # tutorial-authoring dir (workshop/) — participants read the tutorial
+          # on the Workshop Studio site, not in the checkout.
           sudo -u workshop bash -c '
             cd /home/workshop
             git clone ${RepoUrl} gamelift-workshop || true
             cd gamelift-workshop
-            rm -rf workshop workshop-studio
+            rm -rf workshop
             (cd infra && npm install) || true
             (cd backend && npm install) || true
             (cd frontend && npm install) || true
@@ -316,10 +337,13 @@ Resources:
           TargetOriginId: code-server
           ViewerProtocolPolicy: redirect-to-https
           AllowedMethods: [GET, HEAD, OPTIONS, PUT, POST, PATCH, DELETE]
-          # managed policies: CachingDisabled + AllViewer. AllViewer (not
-          # ...ExceptHostHeader) forwards the viewer Host header so code-server
-          # sees Host == Origin == the cloudfront domain; otherwise its
-          # WebSocket CSRF check rejects the connection (close code 1006).
+          # AWS-managed policy IDs (fixed, identical in every account/region —
+          # not account-specific, so hardcoding is the documented usage):
+          #   CachingDisabled          = 4135ea2d-6df8-44a3-9df3-4b5a84be39ad
+          #   AllViewer                = 216adef6-5c7f-47e4-b989-5492eafa07d3
+          # AllViewer (not ...ExceptHostHeader) forwards the viewer Host header
+          # so code-server sees Host == Origin == the cloudfront domain;
+          # otherwise its WebSocket CSRF check rejects the connection (1006).
           CachePolicyId: 4135ea2d-6df8-44a3-9df3-4b5a84be39ad
           OriginRequestPolicyId: 216adef6-5c7f-47e4-b989-5492eafa07d3
         Origins:
@@ -339,3 +363,12 @@ Outputs:
   InstancePublicIp:
     Description: Used automatically by run-anywhere.sh (COMPUTE_IP) in Module 3
     Value: !GetAtt DevInstance.PublicIp
+  VpcId:
+    Description: Workshop VPC ID (for VPC peering / troubleshooting)
+    Value: !Ref WorkshopVpc
+  DevSecurityGroupId:
+    Description: Dev machine security group ID (for rule changes)
+    Value: !Ref DevSecurityGroup
+  DevInstanceId:
+    Description: Dev machine instance ID (for SSM Session Manager access)
+    Value: !Ref DevInstance

@@ -17,10 +17,11 @@ npx cdk deploy PixelRushGameLiftStack --require-approval never
 
 ## 2. Register your machine as fleet compute
 
-One script does the whole registration dance:
+Step 1 left you in `infra/`. Return to the repository root first, then run the
+script (its path is relative to the repo root):
 
 ```bash
-cd ..
+cd ..          # back to the repository root (from infra/)
 ./scripts/run-anywhere.sh
 ```
 

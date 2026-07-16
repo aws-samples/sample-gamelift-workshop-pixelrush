@@ -1,5 +1,5 @@
 ---
-title: "Amazon GameLift 实战"
+title: "Amazon GameLift Servers 实战"
 chapter: true
 weight: 1
 
@@ -74,7 +74,7 @@ weight: 1
 
 在自己账号里运行本 workshop 大约 **$0.20–0.50/小时**（主要是一两台 `c5.large`
 GameLift 实例），**只要完成清理模块**，2 小时总花费远低于 **$1**。详见
-[Amazon GameLift 定价](https://aws.amazon.com/gamelift/pricing/)和
+[Amazon GameLift Servers 定价](https://aws.amazon.com/gamelift/pricing/)和
 [EC2 定价](https://aws.amazon.com/ec2/pricing/)。AWS 活动现场使用提供的临时账号，
 对你免费。
 

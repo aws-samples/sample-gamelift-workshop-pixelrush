@@ -1,7 +1,7 @@
 baseURL = "/"
 locale = "en-US"
 defaultContentLanguage = "en"
-title = "Hands-on Amazon GameLift: Deploy Your First Multiplayer Game"
+title = "Hands-on Amazon GameLift Servers: Deploy Your First Multiplayer Game"
 theme = "hugo-theme-relearn"
 metaDataFormat = "yaml"
 defaultContentLanguageInSubdir = "false"
@@ -10,7 +10,7 @@ enableEmoji = true
 
 [params]
   author = "AWS GameTech"
-  description = "Learn Amazon GameLift hosting, GameLift Anywhere, managed fleets and FlexMatch by deploying a real multiplayer racing game."
+  description = "Learn Amazon GameLift Servers hosting, GameLift Anywhere, managed fleets and FlexMatch by deploying a real multiplayer racing game."
   showVisitedLinks = true
   disableSearch = false
   disableAssetsBusting = false
@@ -23,12 +23,12 @@ enableEmoji = true
 
 [Languages]
   [Languages.en]
-    title = "Hands-on Amazon GameLift: Deploy Your First Multiplayer Game"
+    title = "Hands-on Amazon GameLift Servers: Deploy Your First Multiplayer Game"
     weight = 1
     label = "English"
 
   [Languages.zh]
-    title = "Amazon GameLift 实战：部署你的第一个多人在线游戏"
+    title = "Amazon GameLift Servers 实战：部署你的第一个多人在线游戏"
     weight = 2
     label = "简体中文"
 

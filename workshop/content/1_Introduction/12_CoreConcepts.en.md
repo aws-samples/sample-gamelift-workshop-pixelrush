@@ -8,7 +8,7 @@ weight: 12
 Everything you deploy today fits on one diagram. Keep it handy — each module of
 this workshop lights up one box.
 
-![Amazon GameLift component map](/images/gamelift-arch.png)
+![Amazon GameLift Servers component map](/images/gamelift-arch.png)
 
 *(Diagram labels: BUILD ← your binary · FLEET managed-EC2 / Anywhere ← your
 laptop · GAME SESSION ← players connect directly · QUEUE places sessions ·

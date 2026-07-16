@@ -31,10 +31,12 @@ export const handler = async (event: SNSEvent): Promise<void> => {
         type: 'chat', kind: 'system',
         text: `🏁 FlexMatch：${names.join(' vs ')} 匹配成功`, at: Date.now(),
       }).catch(() => { /* best-effort */ });
-      // debug trace: where the queue placed the session (region is embedded
-      // in the GameLift DnsName: <id>.<fleet>.<region>.amazongamelift.com)
-      const dns: string = gameSessionInfo?.dnsName ?? '';
-      const region = dns.match(/\.([a-z]{2}-[a-z]+-\d)\.amazongamelift\.com$/)?.[1] ?? 'unknown';
+      // debug trace: where the queue actually placed the session. For a
+      // multi-region fleet the placement location lives in the gameSessionArn
+      // (arn:aws:gamelift:<home>::gamesession/fleet-xxx/<location>/<id>), NOT in
+      // the DnsName — the DnsName always carries the fleet's HOME region, so
+      // parsing it would mislabel a Singapore-placed session as us-east-1.
+      const region = placedRegion(gameSessionInfo);
       await broadcastChat({
         type: 'chat', kind: 'debug',
         text: `FlexMatch ⇢ 会话放置于 ${region}｜${gameSessionInfo?.ipAddress ?? '?'}:${gameSessionInfo?.port ?? '?'}｜${names.length} 名玩家`,
@@ -100,6 +102,25 @@ async function lookupName(playerId: string): Promise<string> {
     TableName: MAIN_TABLE, Key: { pk: `PLAYER#${playerId}`, sk: 'PROFILE' },
   })).catch(() => null);
   return (p?.Item?.name as string) ?? playerId.slice(0, 8);
+}
+
+/**
+ * The region a session was actually placed in. A multi-region fleet encodes it
+ * as a location segment in the gameSessionArn:
+ *   arn:aws:gamelift:<home>::gamesession/fleet-<id>/<location>/<sessionId>
+ * When present, that segment is the true placement region. If there's no
+ * location segment (single-region fleet), fall back to the ARN's home region,
+ * then to the DnsName. NOTE: the DnsName always carries the fleet's HOME
+ * region, so it must be the last resort, not the primary source.
+ */
+function placedRegion(gameSessionInfo: { gameSessionArn?: string; dnsName?: string } | undefined): string {
+  const arn = gameSessionInfo?.gameSessionArn ?? '';
+  const loc = arn.match(/:gamesession\/fleet-[^/]+\/([a-z]{2}-[a-z]+-\d)\//);
+  if (loc) return loc[1];
+  const home = arn.match(/^arn:aws:gamelift:([a-z]{2}-[a-z]+-\d):/);
+  if (home) return home[1];
+  const dns = gameSessionInfo?.dnsName ?? '';
+  return dns.match(/\.([a-z]{2}-[a-z]+-\d)\.amazongamelift\.com$/)?.[1] ?? 'unknown';
 }
 
 async function push(playerId: string, payload: Record<string, unknown>): Promise<void> {

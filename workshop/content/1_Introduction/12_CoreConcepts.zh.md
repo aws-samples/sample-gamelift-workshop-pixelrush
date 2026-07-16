@@ -7,7 +7,7 @@ weight: 12
 
 今天要部署的一切都在这一张图上。请记住它——workshop 的每个模块会点亮其中一块。
 
-![Amazon GameLift 组件全景图](/images/gamelift-arch.png)
+![Amazon GameLift Servers 组件全景图](/images/gamelift-arch.png)
 
 | 组件 | 一句话 | 在哪个模块动手 |
 |---|---|---|

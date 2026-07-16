@@ -15,9 +15,8 @@ weight: 23
 ```bash
 git clone https://github.com/aws-samples/sample-gamelift-workshop-pixelrush.git
 cd gamelift-workshop
-# workshop/ 和 workshop-studio/ 是教程本身的源码，实验用不到；
-# 删掉让目录更清爽（可选）
-rm -rf workshop workshop-studio
+# workshop/ 是教程本身的源码，实验用不到；删掉让目录更清爽（可选）
+rm -rf workshop
 (cd infra && npm install)
 (cd backend && npm install)
 (cd frontend && npm install)
