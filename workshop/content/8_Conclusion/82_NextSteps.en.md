@@ -16,9 +16,12 @@ weight: 82
 
 ## Reference material
 
-- [Amazon GameLift Servers documentation](https://docs.aws.amazon.com/gamelift/)
-- [FlexMatch rule set reference](https://docs.aws.amazon.com/gamelift/latest/flexmatchguide/match-rulesets.html)
-- [GameLift Server SDK (Go/C++/C#/Unreal/Unity)](https://github.com/orgs/amazon-gamelift/repositories)
+- [Amazon GameLift Servers documentation](https://docs.aws.amazon.com/gamelift/) —
+  the official service docs: fleets, queues, FlexMatch, the Server SDK and API reference
+- [FlexMatch rule set reference](https://docs.aws.amazon.com/gamelift/latest/flexmatchguide/match-rulesets.html) —
+  the full rule-set schema (rule types, expansions, team definitions) for authoring your own matchmaking
+- [GameLift Server SDK (Go/C++/C#/Unreal/Unity)](https://github.com/orgs/amazon-gamelift/repositories) —
+  the official Amazon GameLift SDK repositories, with the server integration library for each language/engine
 - This workshop's game source — everything you deployed today is readable,
   hackable and yours to extend
 

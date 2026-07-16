@@ -16,9 +16,12 @@ weight: 82
 
 ## 参考资料
 
-- [Amazon GameLift Servers 文档](https://docs.aws.amazon.com/gamelift/)
-- [FlexMatch 规则集参考](https://docs.aws.amazon.com/gamelift/latest/flexmatchguide/match-rulesets.html)
-- [GameLift Server SDK（Go/C++/C#/Unreal/Unity）](https://github.com/orgs/amazon-gamelift/repositories)
+- [Amazon GameLift Servers 文档](https://docs.aws.amazon.com/gamelift/)——
+  官方服务文档：fleet、queue、FlexMatch、Server SDK 及 API 参考
+- [FlexMatch 规则集参考](https://docs.aws.amazon.com/gamelift/latest/flexmatchguide/match-rulesets.html)——
+  完整的规则集 schema（规则类型、expansion、队伍定义），用于编写你自己的匹配规则
+- [GameLift Server SDK（Go/C++/C#/Unreal/Unity）](https://github.com/orgs/amazon-gamelift/repositories)——
+  官方 Amazon GameLift SDK 仓库，含各语言/引擎的服务端集成库
 - 本 workshop 的游戏源码——今天部署的一切都可读、可改、任你扩展
 
 感谢与我们同场竞速！🏁

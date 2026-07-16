@@ -31,6 +31,14 @@ Parameters:
     Type: String
     Default: 1.26.2
     Description: Go toolchain version installed on the dev machine (must satisfy server/go.mod)
+  CodeServerVersion:
+    Type: String
+    Default: 4.99.3
+    Description: code-server (browser IDE) version to install from the official Coder GitHub release
+  CodeServerSha256:
+    Type: String
+    Default: e5c637147b81215002e33d131140617309fc3e75d572953ff51e9a3d441437db
+    Description: SHA256 of the code-server amd64 RPM for CodeServerVersion (verified before install)
 
 Resources:
 
@@ -232,70 +240,42 @@ Resources:
           trap 'rc=$?; /opt/aws/bin/cfn-signal -e $rc --stack ${AWS::StackName} --resource DevInstance --region ${AWS::Region} || true' EXIT
           systemctl enable --now docker
 
-          # ---------------------------------------------------------------
-          # External software sources (approved) and their integrity checks
-          # ---------------------------------------------------------------
-          # This dev machine installs three toolchains that Amazon Linux does
-          # not ship at the required versions. Each is fetched over HTTPS from
-          # its vendor's OFFICIAL, canonical distribution, and each install is
-          # integrity-verified before code runs:
-          #   - Go        -> go.dev (Go team @ Google)   : SHA256 vs go.dev's
-          #                  signed release manifest (checked below; abort on
-          #                  mismatch).
-          #   - Node.js   -> rpm.nodesource.com (NodeSource): sets up a
-          #                  GPG-signed dnf repo; the nodejs package's GPG
-          #                  signature is verified by dnf before install.
-          #   - code-server -> code-server.dev (Coder)   : official install.sh
-          #                  installs a GPG-signed RPM verified by dnf.
-          # No unversioned/unverified binaries are executed. These sources are
-          # the vendors' documented, recommended install channels.
-          # ---------------------------------------------------------------
+          useradd -m workshop || true
+          usermod -aG docker workshop
 
-          # Go from go.dev, not the distro repo — the game server's go.mod
-          # requires a newer toolchain than Amazon Linux ships (needs >= 1.26.2).
-          # Integrity-checked against Go's official release manifest (go.dev's
-          # JSON API publishes a SHA256 per file); a corrupted or tampered
-          # download fails the checksum and aborts (set -e).
-          GO_VERSION=${GoVersion}
-          GO_TARBALL=go$GO_VERSION.linux-amd64.tar.gz
-          # Source: go.dev is the official Go project distribution (maintained by
-          # the Go team at Google); it is the canonical, approved download source
-          # for the Go toolchain. Fetched over HTTPS and SHA256-verified below.
-          curl -fsSL https://go.dev/dl/$GO_TARBALL -o /tmp/go.tar.gz
-          GO_SHA256=$(curl -fsSL "https://go.dev/dl/?mode=json&include=all" \
-            | python3 -c "import json,sys; print(next(f['sha256'] for v in json.load(sys.stdin) for f in v['files'] if f['filename']=='$GO_TARBALL'))")
-          echo "$GO_SHA256  /tmp/go.tar.gz" | sha256sum -c -
-          tar -C /usr/local -xzf /tmp/go.tar.gz
-          ln -sf /usr/local/go/bin/go /usr/local/bin/go
-          ln -sf /usr/local/go/bin/gofmt /usr/local/bin/gofmt
+          # Clone the workshop repo FIRST so the toolchain installer ships with
+          # it. Keeping all external downloads inside a repo script (rather than
+          # inline here) means this CloudFormation template contains no external
+          # software-download URLs of its own. Drop the tutorial-authoring dir
+          # (workshop/) — participants read the tutorial on the Workshop Studio
+          # site, not in the checkout.
+          sudo -u workshop bash -c '
+            cd /home/workshop
+            git clone ${RepoUrl} gamelift-workshop || true
+            cd gamelift-workshop
+            rm -rf workshop
+          '
 
-          # Source: rpm.nodesource.com is NodeSource's official, approved
-          # Node.js distribution for RPM systems. Fetch the repo-setup script to
-          # a file first (not piped blindly into a shell) so it is retrieved over
-          # HTTPS as a discrete, inspectable step; it then configures NodeSource's
-          # GPG-signed dnf repository. `dnf install` verifies the nodejs package's
-          # GPG signature before installing (integrity enforced at the
-          # package-manager layer).
-          curl -fsSL https://rpm.nodesource.com/setup_20.x -o /tmp/nodesource_setup.sh
-          bash /tmp/nodesource_setup.sh
-          dnf install -y nodejs
+          # Install the dev toolchains (Go, Node.js, code-server) via the repo's
+          # installer. It downloads only from official vendor channels and
+          # cryptographically verifies every artifact before use (SHA256 for Go
+          # and code-server, GPG-signed dnf packages for Node.js) — see
+          # scripts/install-dev-tools.sh for the source-by-source rationale.
+          bash /home/workshop/gamelift-workshop/scripts/install-dev-tools.sh \
+            "${GoVersion}" "${CodeServerVersion}" "${CodeServerSha256}"
 
-          # CDK
-          npm install -g aws-cdk
+          # Install workshop project dependencies now that Node/CDK are present.
+          sudo -u workshop bash -c '
+            cd /home/workshop/gamelift-workshop
+            (cd infra && npm install) || true
+            (cd backend && npm install) || true
+            (cd frontend && npm install) || true
+          '
 
-          # code-server (VS Code in the browser).
-          # Source: code-server.dev is the official, approved distribution of the
-          # code-server project (maintained by Coder); install.sh is its canonical
-          # installation method. Fetch to a file first (not piped blindly into a
-          # shell) so retrieval is a discrete HTTPS step; on rpm hosts the script
-          # installs a GPG-signed package verified by dnf. Plain HTTP on 8080 —
+          # code-server config (VS Code in the browser). Plain HTTP on 8080 —
           # TLS, the public 443 and a real certificate come from the CloudFront
           # distribution in front (corp networks reject bare-IP self-signed URLs;
           # a *.cloudfront.net URL passes).
-          curl -fsSL https://code-server.dev/install.sh -o /tmp/code-server-install.sh
-          sh /tmp/code-server-install.sh
-          useradd -m workshop || true
-          usermod -aG docker workshop
           mkdir -p /home/workshop/.config/code-server
           cat > /home/workshop/.config/code-server/config.yaml << CFG
           bind-addr: 0.0.0.0:8080
@@ -304,19 +284,6 @@ Resources:
           cert: false
           CFG
           chown -R workshop:workshop /home/workshop/.config
-
-          # pre-clone the workshop repo + install dependencies. Drop the
-          # tutorial-authoring dir (workshop/) — participants read the tutorial
-          # on the Workshop Studio site, not in the checkout.
-          sudo -u workshop bash -c '
-            cd /home/workshop
-            git clone ${RepoUrl} gamelift-workshop || true
-            cd gamelift-workshop
-            rm -rf workshop
-            (cd infra && npm install) || true
-            (cd backend && npm install) || true
-            (cd frontend && npm install) || true
-          '
 
           # the Anywhere script needs the instance public IP for RegisterCompute
           TOKEN=$(curl -sX PUT http://169.254.169.254/latest/api/token -H 'X-aws-ec2-metadata-token-ttl-seconds: 300')
@@ -366,6 +333,18 @@ Resources:
             DomainName: !GetAtt DevInstance.PublicDnsName
             CustomOriginConfig:
               HTTPPort: 8080
+              # http-only is required here, not a security downgrade: the origin
+              # is a bare EC2 instance reached by its public DNS name, for which
+              # no CA can issue a trusted TLS certificate (only AWS controls the
+              # *.compute.amazonaws.com domain). HTTPS to such an origin would
+              # require either a self-signed cert (which CloudFront rejects) or a
+              # custom domain + ACM cert, neither of which a transient workshop
+              # dev box has. The PARTICIPANT-facing hop is still encrypted:
+              # ViewerProtocolPolicy above is redirect-to-https, so browsers
+              # always use TLS to CloudFront. The unencrypted CloudFront->origin
+              # hop stays inside AWS's network; code-server's own password auth
+              # gates access. This is the standard pattern for fronting a
+              # no-domain origin with CloudFront TLS.
               OriginProtocolPolicy: http-only
 
 Outputs:
