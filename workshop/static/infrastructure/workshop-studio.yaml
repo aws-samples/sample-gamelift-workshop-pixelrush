@@ -34,11 +34,7 @@ Parameters:
   CodeServerVersion:
     Type: String
     Default: 4.99.3
-    Description: code-server (browser IDE) version to install from the official Coder GitHub release
-  CodeServerSha256:
-    Type: String
-    Default: e5c637147b81215002e33d131140617309fc3e75d572953ff51e9a3d441437db
-    Description: SHA256 of the code-server amd64 RPM for CodeServerVersion (verified before install)
+    Description: code-server (browser IDE) version installed via Coder's official install script
 
 Resources:
 
@@ -257,12 +253,12 @@ Resources:
           '
 
           # Install the dev toolchains (Go, Node.js, code-server) via the repo's
-          # installer. It downloads only from official vendor channels and
-          # cryptographically verifies every artifact before use (SHA256 for Go
-          # and code-server, GPG-signed dnf packages for Node.js) — see
+          # installer. It downloads only from official vendor channels (Go
+          # SHA256-verified; Node.js and code-server via the vendors' official
+          # installers using GPG-signed dnf packages) — see
           # scripts/install-dev-tools.sh for the source-by-source rationale.
           bash /home/workshop/gamelift-workshop/scripts/install-dev-tools.sh \
-            "${GoVersion}" "${CodeServerVersion}" "${CodeServerSha256}"
+            "${GoVersion}" "${CodeServerVersion}"
 
           # Install workshop project dependencies now that Node/CDK are present.
           sudo -u workshop bash -c '
