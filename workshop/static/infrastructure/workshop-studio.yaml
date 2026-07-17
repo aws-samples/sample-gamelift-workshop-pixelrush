@@ -272,11 +272,18 @@ Resources:
           # TLS, the public 443 and a real certificate come from the CloudFront
           # distribution in front (corp networks reject bare-IP self-signed URLs;
           # a *.cloudfront.net URL passes).
+          # Fetch the generated password from Secrets Manager at runtime. (A
+          # {{resolve:secretsmanager}} dynamic reference does NOT work inside
+          # UserData — CFN only resolves those in template properties, not in
+          # the heredoc body — so the literal would otherwise land in the file.)
+          CS_PASSWORD=$(aws secretsmanager get-secret-value \
+            --secret-id ${CodeServerPasswordSecret} --region ${AWS::Region} \
+            --query SecretString --output text)
           mkdir -p /home/workshop/.config/code-server
           cat > /home/workshop/.config/code-server/config.yaml << CFG
           bind-addr: 0.0.0.0:8080
           auth: password
-          password: {{resolve:secretsmanager:${CodeServerPasswordSecret}:SecretString}}
+          password: $CS_PASSWORD
           cert: false
           CFG
           chown -R workshop:workshop /home/workshop/.config
@@ -347,9 +354,13 @@ Outputs:
   CodeServerURL:
     Description: Open this in your browser (VS Code login page)
     Value: !Sub https://${CodeServerDistribution.DomainName}
-  CodeServerPassword:
-    Description: Password for the browser IDE
-    Value: !Sub '{{resolve:secretsmanager:${CodeServerPasswordSecret}:SecretString}}'
+  CodeServerPasswordSecretConsole:
+    Description: >-
+      Open this to reveal the browser-IDE password (click "Retrieve secret
+      value"). CloudFormation does not expose Secrets Manager values as plain
+      stack outputs, so the password is surfaced via its Secrets Manager console
+      page instead.
+    Value: !Sub 'https://${AWS::Region}.console.aws.amazon.com/secretsmanager/secret?name=${CodeServerPasswordSecret}&region=${AWS::Region}'
   InstancePublicIp:
     Description: Used automatically by run-anywhere.sh (COMPUTE_IP) in Module 3
     Value: !GetAtt DevInstance.PublicIp
