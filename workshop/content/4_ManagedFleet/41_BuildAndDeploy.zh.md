@@ -34,13 +34,19 @@ pixelrush-server
 
 ```bash
 cd infra
-npx cdk deploy PixelRushGameLiftStack -c stage=ec2 --require-approval never
+npx cdk deploy PixelRushGameLiftStack PixelRushBackendStack -c stage=ec2 --require-approval never
 ```
 
-预期输出——部署完成时会看到该 stack 的输出（fleet ID 和 queue 名）：
+两个 stack 一起部署：`PixelRushGameLiftStack` 创建托管 EC2 fleet，`PixelRushBackendStack`
+重新部署以让匹配 Lambda 切换到**直接放置**（`PLACEMENT_MODE=open`）——本模块玩家被
+**直接放置**到 fleet 上，**没有任何匹配规则**（FlexMatch 规则在模块 5 才引入）。只部署
+GameLift stack 会让后端停留在上一个模式。
+
+预期输出——两个 stack 都完成，并显示 fleet ID 和 queue 名：
 
 ```
 ✅  PixelRushGameLiftStack
+✅  PixelRushBackendStack
 
 Outputs:
 PixelRushGameLiftStack.Ec2FleetId = fleet-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
@@ -48,13 +54,14 @@ PixelRushGameLiftStack.Ec2QueueName = PixelRushQueue
 Stack ARN: arn:aws:cloudformation:us-east-1:123456789012:stack/PixelRushGameLiftStack/...
 ```
 
-`-c stage=ec2` 标志在你已有的 stack 上扩展三个资源：
+`-c stage=ec2` 标志在你已有的 stack 上扩展：
 
 | 资源 | 发生了什么 |
 |---|---|
 | **Build** | `server/dist/linux/` 打包上传 S3，注册到 GameLift |
 | **Fleet** | GameLift 开出一台 c5.large，下载 build，执行 `install.sh`，拉起你的服务器进程 |
 | **Queue** | `PixelRushQueue` — 会话放置目标（本模块直接放置，模块 5 经由 FlexMatch）|
+| **Backend** | 匹配 Lambda 切换到直接放置（无规则）——这就是这里要重新部署后端 stack 的原因 |
 
 {{% notice info %}}
 这一步需要 **约 15 分钟**（实例开通 + build 安装 + 进程健康检查）。别干等——
