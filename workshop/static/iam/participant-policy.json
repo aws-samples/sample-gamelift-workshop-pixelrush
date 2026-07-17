@@ -138,20 +138,26 @@
         "iam:DeleteRolePolicy"
       ],
       "Resource": [
-        "arn:aws:iam::${aws:PrincipalAccount}:role/cdk-*",
-        "arn:aws:iam::${aws:PrincipalAccount}:role/PixelRush*"
-      ]
+        "arn:aws:iam::*:role/cdk-*",
+        "arn:aws:iam::*:role/PixelRush*"
+      ],
+      "Condition": {
+        "StringEquals": {
+          "aws:ResourceAccount": "${aws:PrincipalAccount}"
+        }
+      }
     },
     {
       "Sid": "PassRolesToWorkshopServices",
       "Effect": "Allow",
       "Action": "iam:PassRole",
       "Resource": [
-        "arn:aws:iam::${aws:PrincipalAccount}:role/cdk-*",
-        "arn:aws:iam::${aws:PrincipalAccount}:role/PixelRush*"
+        "arn:aws:iam::*:role/cdk-*",
+        "arn:aws:iam::*:role/PixelRush*"
       ],
       "Condition": {
         "StringEquals": {
+          "aws:ResourceAccount": "${aws:PrincipalAccount}",
           "iam:PassedToService": [
             "cloudformation.amazonaws.com",
             "gamelift.amazonaws.com",
@@ -165,7 +171,12 @@
       "Sid": "AssumeCdkBootstrapRoles",
       "Effect": "Allow",
       "Action": "sts:AssumeRole",
-      "Resource": "arn:aws:iam::${aws:PrincipalAccount}:role/cdk-*"
+      "Resource": "arn:aws:iam::*:role/cdk-*",
+      "Condition": {
+        "StringEquals": {
+          "aws:ResourceAccount": "${aws:PrincipalAccount}"
+        }
+      }
     },
     {
       "Sid": "ReadOnlyAcrossWorkshopServices",
