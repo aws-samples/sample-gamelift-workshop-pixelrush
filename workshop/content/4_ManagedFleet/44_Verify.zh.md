@@ -61,6 +61,11 @@ Stack ARN: arn:aws:cloudformation:us-east-1:123456789012:stack/PixelRushFrontend
 
 ## 真正对战 ★
 
+{{% notice warning %}}
+fleet 需 **~5 分钟**就绪，过早发起对战可能会失败（显示 "Matchmaking unavailable"），
+可在控制台查看 fleet 状态后再试。
+{{% /notice %}}
+
 这是游戏第一次成为真正的多人游戏：
 
 1. 打开你的 **SiteUrl** 并登录（车手名 + `gamelift`）

@@ -65,6 +65,12 @@ which now routes races to the managed fleet instead of Anywhere.
 
 ## Race for real ★
 
+{{% notice warning %}}
+The fleet takes **~5 minutes** to become ready. Starting a race too early may
+fail ("Matchmaking unavailable") — check the fleet status in the console and try
+again once it's ready.
+{{% /notice %}}
+
 This is the moment the game becomes truly multiplayer:
 
 1. Open your **SiteUrl** and log in (racer name + `gamelift`)
