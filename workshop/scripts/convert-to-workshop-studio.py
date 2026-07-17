@@ -127,7 +127,6 @@ infrastructure:
       label: gamelift-workshop-devmachine
       participantVisibleStackOutputs:
         - CodeServerURL
-        - CodeServerPasswordSecretConsole
         - InstancePublicIp
 
 awsAccountConfig:

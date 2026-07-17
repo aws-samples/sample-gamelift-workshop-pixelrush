@@ -38,21 +38,6 @@ Parameters:
 
 Resources:
 
-  # ---------- credentials ----------
-  # code-server login password, generated at deploy time (never hardcoded in
-  # the template). Stored in Secrets Manager and surfaced to the participant
-  # via the CodeServerPassword stack output.
-  CodeServerPasswordSecret:
-    Type: AWS::SecretsManager::Secret
-    # Workshop credential: delete with the stack (nothing to retain post-event).
-    DeletionPolicy: Delete
-    UpdateReplacePolicy: Delete
-    Properties:
-      Description: code-server browser IDE login password (workshop dev machine)
-      GenerateSecretString:
-        PasswordLength: 20
-        ExcludePunctuation: true
-
   # ---------- network ----------
   WorkshopVpc:
     Type: AWS::EC2::VPC
@@ -196,11 +181,6 @@ Resources:
   # ---------- dev machine ----------
   DevInstance:
     Type: AWS::EC2::Instance
-    # UserData resolves the code-server password via a
-    # {{resolve:secretsmanager:...}} dynamic reference; that runtime lookup does
-    # NOT create an implicit CloudFormation dependency, so declare it explicitly
-    # to guarantee the secret exists before the instance boots.
-    DependsOn: CodeServerPasswordSecret
     # Workshop resource: replace/delete with the stack (no data to retain).
     DeletionPolicy: Delete
     UpdateReplacePolicy: Delete
@@ -261,22 +241,17 @@ Resources:
             (cd frontend && npm install) || true
           '
 
-          # code-server config (VS Code in the browser). Plain HTTP on 8080 —
-          # TLS, the public 443 and a real certificate come from the CloudFront
-          # distribution in front (corp networks reject bare-IP self-signed URLs;
-          # a *.cloudfront.net URL passes).
-          # Fetch the generated password from Secrets Manager at runtime. (A
-          # {{resolve:secretsmanager}} dynamic reference does NOT work inside
-          # UserData — CFN only resolves those in template properties, not in
-          # the heredoc body — so the literal would otherwise land in the file.)
-          CS_PASSWORD=$(aws secretsmanager get-secret-value \
-            --secret-id ${CodeServerPasswordSecret} --region ${AWS::Region} \
-            --query SecretString --output text)
+          # code-server config (VS Code in the browser). No login required: the
+          # instance is reachable only through the CloudFront distribution in
+          # front (its origin port is not exposed to participants directly), and
+          # the *.cloudfront.net URL is unguessable and unique per deployment —
+          # so this transient, single-user dev box is gated by the CloudFront
+          # entry point rather than a password. Plain HTTP on 8080; TLS and the
+          # public 443 certificate are terminated at CloudFront.
           mkdir -p /home/workshop/.config/code-server
           cat > /home/workshop/.config/code-server/config.yaml << CFG
           bind-addr: 0.0.0.0:8080
-          auth: password
-          password: $CS_PASSWORD
+          auth: none
           cert: false
           CFG
           chown -R workshop:workshop /home/workshop/.config
@@ -345,15 +320,8 @@ Resources:
 
 Outputs:
   CodeServerURL:
-    Description: Open this in your browser (VS Code login page)
+    Description: Open this in your browser to launch the VS Code dev environment (no login required)
     Value: !Sub https://${CodeServerDistribution.DomainName}
-  CodeServerPasswordSecretConsole:
-    Description: >-
-      Open this to reveal the browser-IDE password (click "Retrieve secret
-      value"). CloudFormation does not expose Secrets Manager values as plain
-      stack outputs, so the password is surfaced via its Secrets Manager console
-      page instead.
-    Value: !Sub 'https://${AWS::Region}.console.aws.amazon.com/secretsmanager/secret?name=${CodeServerPasswordSecret}&region=${AWS::Region}'
   InstancePublicIp:
     Description: Used automatically by run-anywhere.sh (COMPUTE_IP) in Module 3
     Value: !GetAtt DevInstance.PublicIp

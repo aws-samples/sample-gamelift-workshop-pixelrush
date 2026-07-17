@@ -22,11 +22,9 @@ The event account comes pre-provisioned with a **cloud development machine**
 (VS Code in the browser) that already has every tool installed:
 
 1. On the event page, find the **Event Outputs** section.
-2. Open the **CodeServerPasswordSecretConsole** link and click **Retrieve
-   secret value** to reveal your browser-IDE password.
-3. Open the **CodeServerURL** link (a `cloudfront.net` address) and log in with
-   that password.
-4. You'll see VS Code in your browser with the workshop repository already
+2. Open the **CodeServerURL** link (a `cloudfront.net` address) — no login is
+   required.
+3. You'll see VS Code in your browser with the workshop repository already
    cloned at `~/gamelift-workshop`.
 
 Open a terminal inside it (`Menu → Terminal → New Terminal`) and verify:

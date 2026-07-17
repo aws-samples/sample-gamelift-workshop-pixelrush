@@ -21,10 +21,8 @@ weight: 21
 活动账号预置了一台**云上开发机**（浏览器里的 VS Code），所有工具已装好：
 
 1. 在活动页面找到 **Event Outputs** 区域。
-2. 打开 **CodeServerPasswordSecretConsole** 链接，点击 **Retrieve secret value**
-   查看浏览器 IDE 的登录密码。
-3. 打开 **CodeServerURL** 链接（一个 `cloudfront.net` 地址），用该密码登录。
-4. 浏览器中的 VS Code 已把 workshop 仓库克隆在 `~/gamelift-workshop`。
+2. 打开 **CodeServerURL** 链接（一个 `cloudfront.net` 地址）——无需登录。
+3. 浏览器中的 VS Code 已把 workshop 仓库克隆在 `~/gamelift-workshop`。
 
 在其中打开终端（`菜单 → Terminal → New Terminal`）并验证：
 
