@@ -30,11 +30,11 @@ Parameters:
   GoVersion:
     Type: String
     Default: 1.26.2
-    Description: Go toolchain version installed on the dev machine (must satisfy server/go.mod)
+    Description: Go version for the dev machine (must satisfy server/go.mod)
   CodeServerVersion:
     Type: String
     Default: 4.99.3
-    Description: code-server (browser IDE) version installed via Coder's official install script
+    Description: Browser IDE version pinned for the dev machine
 
 Resources:
 
@@ -109,12 +109,12 @@ Resources:
         - { IpProtocol: tcp, FromPort: 8080, ToPort: 8080, CidrIp: 0.0.0.0/0, Description: code-server HTTP origin for CloudFront }
         - { IpProtocol: tcp, FromPort: 1935, ToPort: 1935, CidrIp: 0.0.0.0/0, Description: Anywhere game server (Module 3) }
         - { IpProtocol: udp, FromPort: 1935, ToPort: 1935, CidrIp: 0.0.0.0/0, Description: Anywhere game server WebRTC/UDP }
-      # Explicit egress (instance downloads packages, pulls the GameLift SDK,
-      # and calls AWS APIs over HTTPS/DNS). Stating it satisfies cfn_nag F1000
-      # instead of relying on the implicit allow-all default.
+      # Explicit egress (instance needs outbound HTTPS/DNS for AWS APIs and
+      # package repositories). Stating it satisfies cfn_nag F1000 instead of
+      # relying on the implicit allow-all default.
       SecurityGroupEgress:
-        - { IpProtocol: tcp, FromPort: 443, ToPort: 443, CidrIp: 0.0.0.0/0, Description: "HTTPS out (AWS APIs, package downloads)" }
-        - { IpProtocol: tcp, FromPort: 80, ToPort: 80, CidrIp: 0.0.0.0/0, Description: HTTP out (package repos) }
+        - { IpProtocol: tcp, FromPort: 443, ToPort: 443, CidrIp: 0.0.0.0/0, Description: "HTTPS outbound (AWS APIs, package repositories)" }
+        - { IpProtocol: tcp, FromPort: 80, ToPort: 80, CidrIp: 0.0.0.0/0, Description: HTTP outbound (package repositories) }
         - { IpProtocol: udp, FromPort: 53, ToPort: 53, CidrIp: 0.0.0.0/0, Description: DNS out }
 
   # ---------- IAM ----------
@@ -249,8 +249,7 @@ Resources:
             rm -rf workshop
           '
 
-          # Run the repository's machine-setup script. All source references and
-          # their verification live in that script; see scripts/install-dev-tools.sh.
+          # Run the repository's machine-setup script.
           bash /home/workshop/gamelift-workshop/scripts/install-dev-tools.sh \
             "${GoVersion}" "${CodeServerVersion}"
 
