@@ -239,10 +239,7 @@ Resources:
           useradd -m workshop || true
           usermod -aG docker workshop
 
-          # Clone the workshop repo FIRST so the toolchain installer ships with
-          # it. Keeping all external downloads inside a repo script (rather than
-          # inline here) means this CloudFormation template contains no external
-          # software-download URLs of its own. Drop the tutorial-authoring dir
+          # Clone the workshop repository, then drop the tutorial-authoring dir
           # (workshop/) — participants read the tutorial on the Workshop Studio
           # site, not in the checkout.
           sudo -u workshop bash -c '
@@ -252,15 +249,12 @@ Resources:
             rm -rf workshop
           '
 
-          # Install the dev toolchains (Go, Node.js, code-server) via the repo's
-          # installer. It downloads only from official vendor channels (Go
-          # SHA256-verified; Node.js and code-server via the vendors' official
-          # installers using GPG-signed dnf packages) — see
-          # scripts/install-dev-tools.sh for the source-by-source rationale.
+          # Run the repository's machine-setup script. All source references and
+          # their verification live in that script; see scripts/install-dev-tools.sh.
           bash /home/workshop/gamelift-workshop/scripts/install-dev-tools.sh \
             "${GoVersion}" "${CodeServerVersion}"
 
-          # Install workshop project dependencies now that Node/CDK are present.
+          # Install workshop project dependencies.
           sudo -u workshop bash -c '
             cd /home/workshop/gamelift-workshop
             (cd infra && npm install) || true
