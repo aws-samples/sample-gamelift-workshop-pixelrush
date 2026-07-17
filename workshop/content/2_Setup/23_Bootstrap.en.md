@@ -14,7 +14,8 @@ and `cd ~/gamelift-workshop`, then jump to step 3.
 **Own account only** — clone and install dependencies:
 
 ```bash
-git clone https://github.com/aws-samples/sample-gamelift-workshop-pixelrush.git
+# clone into a directory named gamelift-workshop (matches the rest of the guide)
+git clone https://github.com/aws-samples/sample-gamelift-workshop-pixelrush.git gamelift-workshop
 cd gamelift-workshop
 # the workshop/ dir is the tutorial's own source — not needed for the labs;
 # remove it for a cleaner tree (optional)
@@ -36,7 +37,10 @@ node --version && cdk --version && aws sts get-caller-identity
 
 **Everyone does this** — bootstrapping provisions resources *in your AWS
 account* (an S3 bucket and the roles CDK deploys through), so it is required
-even on the pre-built dev machine. One time per account/region:
+even on the pre-built dev machine. One time per account/region.
+
+Run this from the repository root — the `gamelift-workshop` directory from
+step 1 (on the dev machine, `cd ~/gamelift-workshop` first):
 
 ```bash
 cd infra

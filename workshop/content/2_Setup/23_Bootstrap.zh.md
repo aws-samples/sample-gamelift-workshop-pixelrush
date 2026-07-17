@@ -13,7 +13,8 @@ weight: 23
 **仅自己账号** —— 克隆并安装依赖：
 
 ```bash
-git clone https://github.com/aws-samples/sample-gamelift-workshop-pixelrush.git
+# 克隆到名为 gamelift-workshop 的目录（与后文保持一致）
+git clone https://github.com/aws-samples/sample-gamelift-workshop-pixelrush.git gamelift-workshop
 cd gamelift-workshop
 # workshop/ 是教程本身的源码，实验用不到；删掉让目录更清爽（可选）
 rm -rf workshop
@@ -33,7 +34,10 @@ node --version && cdk --version && aws sts get-caller-identity
 ## 3. 初始化 CDK
 
 **所有人都要做**——bootstrap 是在**你的 AWS 账号里**创建资源（部署所需的
-S3 桶和角色），所以即使在预置好的开发机上也必须执行。每个账号/区域一次：
+S3 桶和角色），所以即使在预置好的开发机上也必须执行。每个账号/区域一次。
+
+在仓库根目录下执行——即第 1 步的 `gamelift-workshop` 目录（开发机上先
+`cd ~/gamelift-workshop`）：
 
 ```bash
 cd infra
