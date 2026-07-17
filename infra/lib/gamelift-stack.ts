@@ -105,22 +105,40 @@ export class GameLiftStack extends cdk.Stack {
       const launchParams = (port: number) =>
         `--port ${port} --api-url ${props.apiEndpoint} --results-secret ${props.resultsSecret} --log /local/game/logs/server-${port}.log`;
 
+      // One server process = one concurrent game session (single-room server).
+      // c5.2xlarge (8 vCPU / 16 GB) runs the light 20Hz race sim comfortably at
+      // ~4 rooms/vCPU, so we run 32 processes = 32 concurrent sessions per
+      // instance. Each process needs its own port; we use a contiguous range
+      // starting at 8443.
+      //
+      // TRADE-OFF: only 8443 (alt-HTTPS) and 2083 (Cloudflare HTTPS) were
+      // measured to reliably pass egress-filtered corporate networks. Scaling
+      // to 32 ports means most sessions land on ordinary high ports
+      // (8444-8474) that some corporate networks may block — the WebRTC/UDP
+      // path then falls back to WS, or the connection fails on very locked-down
+      // networks. Lower SESSIONS_PER_INSTANCE to trade capacity for
+      // firewall-friendliness.
+      const SESSIONS_PER_INSTANCE = 32;
+      const GAME_PORT_BASE = 8443;
+      const gamePorts = Array.from(
+        { length: SESSIONS_PER_INSTANCE },
+        (_, i) => GAME_PORT_BASE + i,
+      );
+      const gamePortMax = GAME_PORT_BASE + SESSIONS_PER_INSTANCE - 1;
+
       const ec2Fleet = new gamelift.CfnFleet(this, 'Ec2Fleet', {
         name: 'PixelRushFleet',
         buildId: build.attrBuildId,
-        ec2InstanceType: 'c5.large',
+        ec2InstanceType: 'c5.2xlarge',
         fleetType: 'ON_DEMAND',
         // TLS cert so browsers on the HTTPS CloudFront page can use wss://
         certificateConfiguration: { certificateType: 'GENERATED' },
         // Browser WebSocket = TCP; the WebRTC unreliable DataChannel = UDP on
-        // the same port numbers. GameLift forbids ports <=1025. Egress-
-        // filtered user networks (measured): 7777/1935/9443/8080 blocked;
-        // 8443 (alt-HTTPS) and 2083 (Cloudflare HTTPS) pass.
+        // the same port numbers. GameLift forbids ports <=1025. One port per
+        // server process → open the whole 8443..gamePortMax range (TCP + UDP).
         ec2InboundPermissions: [
-          { fromPort: 8443, toPort: 8443, ipRange: '0.0.0.0/0', protocol: 'TCP' },
-          { fromPort: 2083, toPort: 2083, ipRange: '0.0.0.0/0', protocol: 'TCP' },
-          { fromPort: 8443, toPort: 8443, ipRange: '0.0.0.0/0', protocol: 'UDP' },
-          { fromPort: 2083, toPort: 2083, ipRange: '0.0.0.0/0', protocol: 'UDP' },
+          { fromPort: GAME_PORT_BASE, toPort: gamePortMax, ipRange: '0.0.0.0/0', protocol: 'TCP' },
+          { fromPort: GAME_PORT_BASE, toPort: gamePortMax, ipRange: '0.0.0.0/0', protocol: 'UDP' },
         ],
         // Single region by default (fast, cheap). The optional multi-region
         // appendix adds locations via `-c extraRegions=ap-northeast-1,ap-southeast-1`;
@@ -134,10 +152,11 @@ export class GameLiftStack extends cdk.Stack {
         ],
         runtimeConfiguration: {
           gameSessionActivationTimeoutSeconds: 300,
-          serverProcesses: [
-            { launchPath: '/local/game/pixelrush-server', parameters: launchParams(8443), concurrentExecutions: 1 },
-            { launchPath: '/local/game/pixelrush-server', parameters: launchParams(2083), concurrentExecutions: 1 },
-          ],
+          serverProcesses: gamePorts.map((port) => ({
+            launchPath: '/local/game/pixelrush-server',
+            parameters: launchParams(port),
+            concurrentExecutions: 1,
+          })),
         },
       });
 
