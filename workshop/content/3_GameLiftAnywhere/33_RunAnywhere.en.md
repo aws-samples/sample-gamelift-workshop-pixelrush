@@ -15,29 +15,7 @@ npx cdk deploy PixelRushGameLiftStack --require-approval never
 
 ~2 minutes. Output includes `AnywhereFleetId` and `AnywhereMatchmakingConfig`.
 
-## 2. Open the game port to your IP
-
-Players connect their browser **directly** to this machine on port **1935**
-(TCP + UDP). The dev machine's security group does **not** pre-open that port to
-the internet — you grant access to just your own IP, so the machine is never
-exposed to the whole world.
-
-1. Find your public IP: open [checkip.amazonaws.com](https://checkip.amazonaws.com)
-   (or run `curl -s https://checkip.amazonaws.com`).
-2. In the AWS console go to **EC2 → Security Groups**, and open the group from
-   the **DevSecurityGroupId** event output.
-3. **Edit inbound rules → Add rule**, twice:
-   - Type **Custom TCP**, Port **1935**, Source **My IP** (or `<your-ip>/32`)
-   - Type **Custom UDP**, Port **1935**, Source **My IP**
-4. **Save rules.**
-
-:::alert{type=info}
-Only your IP needs access — each participant opens the port for their own
-machine. If your IP changes (VPN, network switch), re-add the rule for the new
-address.
-:::
-
-## 3. Register your machine as fleet compute
+## 2. Register your machine as fleet compute
 
 Step 1 left you in `infra/`. Return to the repository root first, then run the
 script (its path is relative to the repo root):
@@ -66,7 +44,7 @@ AWS-event path: the script auto-detects the dev machine's public IP via the
 `COMPUTE_IP` environment variable (pre-set on the machine).
 {{% /notice %}}
 
-## 4. Checkpoint ★
+## 3. Checkpoint ★
 
 Open the AWS console → **Amazon GameLift Servers → Fleets →
 PixelRushAnywhereFleet → Computes** tab:
