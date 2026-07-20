@@ -14,7 +14,26 @@ npx cdk deploy PixelRushGameLiftStack --require-approval never
 
 约 2 分钟。输出包含 `AnywhereFleetId` 和 `AnywhereMatchmakingConfig`。
 
-## 2. 把你的机器注册为 fleet 算力
+## 2. 把游戏端口放开给你的 IP
+
+玩家的浏览器会**直连**这台机器的 **1935** 端口（TCP + UDP）。dev 机的安全组
+**不会**预先把这个端口开放给整个互联网——你只放开给自己的 IP，机器不会暴露在公网。
+
+1. 查你的公网 IP：打开 [checkip.amazonaws.com](https://checkip.amazonaws.com)
+   （或运行 `curl -s https://checkip.amazonaws.com`）。
+2. 在 AWS 控制台进入 **EC2 → 安全组**，打开 **DevSecurityGroupId** 这个 event
+   output 对应的安全组。
+3. **编辑入站规则 → 添加规则**，加两条：
+   - 类型 **自定义 TCP**，端口 **1935**，来源 **My IP**（或 `<你的IP>/32`）
+   - 类型 **自定义 UDP**，端口 **1935**，来源 **My IP**
+4. **保存规则。**
+
+:::alert{type=info}
+只需放开你自己的 IP——每位参与者为自己的机器放开端口。若你的 IP 变了（VPN、
+切换网络），为新地址重新添加规则即可。
+:::
+
+## 3. 把你的机器注册为 fleet 算力
 
 第 1 步结束时你在 `infra/`。先回到仓库根目录，再运行脚本（脚本路径相对仓库根目录）：
 
@@ -41,7 +60,7 @@ ProcessReady on port 1935; waiting for game sessions
 AWS 活动路径：脚本会通过预设的 `COMPUTE_IP` 环境变量自动使用开发机的公网 IP 注册。
 {{% /notice %}}
 
-## 3. 检查点 ★
+## 4. 检查点 ★
 
 打开 AWS 控制台 → **Amazon GameLift Servers → Fleets →
 PixelRushAnywhereFleet → Computes** 页签：

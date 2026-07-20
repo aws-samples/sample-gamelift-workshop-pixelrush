@@ -35,6 +35,14 @@ Parameters:
     Type: String
     Default: 4.99.3
     Description: Browser IDE version pinned for the dev machine
+  CloudFrontOriginPrefixListId:
+    Type: String
+    Default: pl-3b927c52
+    Description: >-
+      AWS-managed prefix list "com.amazonaws.global.cloudfront.origin-facing"
+      for the deploy Region — restricts the code-server origin port to
+      CloudFront edge IPs only (default is the us-east-1 ID; override for other
+      Regions).
 
 Resources:
 
@@ -89,11 +97,18 @@ Resources:
         game server running on it).
       VpcId: !Ref WorkshopVpc
       SecurityGroupIngress:
-        # code-server origin: reached by CloudFront edges, not participants
-        # directly (password auth protects it either way)
-        - { IpProtocol: tcp, FromPort: 8080, ToPort: 8080, CidrIp: 0.0.0.0/0, Description: code-server HTTP origin for CloudFront }
-        - { IpProtocol: tcp, FromPort: 1935, ToPort: 1935, CidrIp: 0.0.0.0/0, Description: Anywhere game server (Module 3) }
-        - { IpProtocol: udp, FromPort: 1935, ToPort: 1935, CidrIp: 0.0.0.0/0, Description: Anywhere game server WebRTC/UDP }
+        # code-server origin: reached only by CloudFront edge servers (via the
+        # managed prefix list), never open to the whole internet. code-server's
+        # own gating protects it beyond that.
+        - IpProtocol: tcp
+          FromPort: 8080
+          ToPort: 8080
+          SourcePrefixListId: !Ref CloudFrontOriginPrefixListId
+          Description: code-server HTTP origin, CloudFront edge IPs only
+        # NOTE: the Module 3 game ports (1935 TCP/UDP) are intentionally NOT
+        # opened here. Pre-opening them to 0.0.0.0/0 is an open-to-world ingress;
+        # instead, Module 3 has participants add a scoped inbound rule for their
+        # own IP in the console just before they run the Anywhere server.
       # Explicit egress (instance needs outbound HTTPS/DNS for AWS APIs and
       # package repositories). Stating it satisfies cfn_nag F1000 instead of
       # relying on the implicit allow-all default.
@@ -193,6 +208,7 @@ Resources:
         Timeout: PT20M
     Properties:
       InstanceType: !Ref InstanceType
+      EbsOptimized: true
       ImageId: '{{resolve:ssm:/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64}}'
       SubnetId: !Ref PublicSubnet
       SecurityGroupIds: [!Ref DevSecurityGroup]
