@@ -40,7 +40,7 @@ it picks up the updated backend:
 
 ```bash
 (cd ../frontend && npm run build)
-npx cdk deploy PixelRushFrontendStack --require-approval never
+npx cdk deploy PixelRushFrontendStack -c stage=ec2 --require-approval never
 ```
 
 Expected output — the deploy ends with the stack's outputs:

@@ -46,11 +46,47 @@ AWS-event path: the script auto-detects the dev machine's public IP via the
 
 ## 3. Checkpoint ★
 
-Open the AWS console → **Amazon GameLift Servers → Fleets →
-PixelRushAnywhereFleet → Computes** tab:
+No console needed — check it straight from the AWS CLI. First grab the Anywhere
+fleet ID from the GameLift stack's outputs:
 
-- Your machine is listed by its compute name, status **Active**
-- Its IP and the GameLift SDK endpoint are shown
+```bash
+FLEET_ID=$(aws cloudformation describe-stacks --stack-name PixelRushGameLiftStack \
+  --query "Stacks[0].Outputs[?OutputKey=='AnywhereFleetId'].OutputValue" --output text)
+echo "fleet: $FLEET_ID"
+```
+
+List the computes registered on that fleet (your just-registered machine):
+
+```bash
+aws gamelift list-compute --fleet-id "$FLEET_ID" \
+  --query "ComputeList[].{Name:ComputeName,Status:ComputeStatus,IP:IpAddress,Location:Location}" \
+  --output table
+```
+
+Then query one compute by name (the `compute:` value the script printed in step 2,
+default `$(hostname -s)-dev`) for full detail incl. the GameLift SDK endpoint:
+
+```bash
+aws gamelift describe-compute --fleet-id "$FLEET_ID" \
+  --compute-name "$(hostname -s)-dev" \
+  --query "Compute.{Name:ComputeName,Status:ComputeStatus,IP:IpAddress,Location:Location,Endpoint:GameLiftServiceSdkEndpoint}" \
+  --output table
+```
+
+Expected — your machine is listed, status **Active**, showing its IP, location
+and GameLift SDK endpoint:
+
+```
+--------------------------------------------------------
+|                    DescribeCompute                   |
++----------+-------------------------------------------+
+|  Endpoint|  wss://us-east-1.api.amazongamelift.com   |
+|  IP      |  127.0.0.1                                |
+|  Location|  custom-pixelrush-dev                     |
+|  Name    |  your-host-dev                            |
+|  Status  |  Active                                   |
++----------+-------------------------------------------+
+```
 
 You've registered your own hardware as GameLift fleet compute: GameLift now
 knows this machine exists, is healthy (`ProcessReady` + heartbeats), and can be

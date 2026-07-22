@@ -106,19 +106,19 @@ export class GameLiftStack extends cdk.Stack {
         `--port ${port} --api-url ${props.apiEndpoint} --results-secret ${props.resultsSecret} --log /local/game/logs/server-${port}.log`;
 
       // One server process = one concurrent game session (single-room server).
-      // c5.2xlarge (8 vCPU / 16 GB) runs the light 20Hz race sim comfortably at
-      // ~4 rooms/vCPU, so we run 32 processes = 32 concurrent sessions per
-      // instance. Each process needs its own port; we use a contiguous range
-      // starting at 8443.
+      // Each process needs its own port; we use a contiguous range starting at
+      // 8443. We run 2 sessions per instance for the workshop — a c5.2xlarge
+      // (8 vCPU / 16 GB) is far more than enough for the light 20Hz race sim
+      // (~4 rooms/vCPU would allow up to 32); raise this to scale capacity per
+      // instance.
       //
       // TRADE-OFF: only 8443 (alt-HTTPS) and 2083 (Cloudflare HTTPS) were
-      // measured to reliably pass egress-filtered corporate networks. Scaling
-      // to 32 ports means most sessions land on ordinary high ports
-      // (8444-8474) that some corporate networks may block — the WebRTC/UDP
-      // path then falls back to WS, or the connection fails on very locked-down
-      // networks. Lower SESSIONS_PER_INSTANCE to trade capacity for
-      // firewall-friendliness.
-      const SESSIONS_PER_INSTANCE = 32;
+      // measured to reliably pass egress-filtered corporate networks. Raising
+      // SESSIONS_PER_INSTANCE means most sessions land on ordinary high ports
+      // (8444+) that some corporate networks may block — the WebRTC/UDP path
+      // then falls back to WS, or the connection fails on very locked-down
+      // networks. Keeping it low (2) trades capacity for firewall-friendliness.
+      const SESSIONS_PER_INSTANCE = 2;
       const GAME_PORT_BASE = 8443;
       const gamePorts = Array.from(
         { length: SESSIONS_PER_INSTANCE },
