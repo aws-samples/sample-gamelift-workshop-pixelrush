@@ -107,10 +107,10 @@ export class GameLiftStack extends cdk.Stack {
 
       // One server process = one concurrent game session (single-room server).
       // Each process needs its own port; we use a contiguous range starting at
-      // 8443. We run 2 sessions per instance for the workshop — a c5.2xlarge
-      // (8 vCPU / 16 GB) is far more than enough for the light 20Hz race sim
-      // (~4 rooms/vCPU would allow up to 32); raise this to scale capacity per
-      // instance.
+      // 8443. We run 2 sessions per instance for the workshop — a c5.large
+      // (2 vCPU / 4 GB) comfortably carries two light 20Hz race sims
+      // (~4 rooms/vCPU would allow up to 8); raise this, and/or the instance
+      // size, to scale capacity per instance.
       //
       // TRADE-OFF: only 8443 (alt-HTTPS) and 2083 (Cloudflare HTTPS) were
       // measured to reliably pass egress-filtered corporate networks. Raising
@@ -129,7 +129,7 @@ export class GameLiftStack extends cdk.Stack {
       const ec2Fleet = new gamelift.CfnFleet(this, 'Ec2Fleet', {
         name: 'PixelRushFleet',
         buildId: build.attrBuildId,
-        ec2InstanceType: 'c5.2xlarge',
+        ec2InstanceType: 'c5.large',
         fleetType: 'ON_DEMAND',
         // TLS cert so browsers on the HTTPS CloudFront page can use wss://
         certificateConfiguration: { certificateType: 'GENERATED' },
