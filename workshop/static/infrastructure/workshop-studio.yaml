@@ -1,10 +1,14 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: MIT-0
+# See the LICENSE file at the root of this repository for the full MIT-0 text.
+
 AWSTemplateFormatVersion: '2010-09-09'
 Description: >-
   GameLift Workshop - Workshop Studio pre-provisioning. Creates a cloud
   development machine (code-server / VS Code in the browser) with all tools
-  installed and the workshop repository pre-cloned. The instance doubles as
-  the participant's GameLift Anywhere compute in Module 3, so its security
-  group opens the game port.
+  installed and the workshop repository pre-cloned. The instance also acts as
+  the participant's GameLift Anywhere compute in Appendix A (optional). Game ports are
+  closed by default and can be opened temporarily to the participant's /32.
 
 Parameters:
   RepoUrl:
@@ -35,12 +39,32 @@ Parameters:
     Type: String
     Default: 4.99.3
     Description: Browser IDE version pinned for the dev machine
+  CachePolicyId:
+    Type: String
+    Default: 4135ea2d-6df8-44a3-9df3-4b5a84be39ad
+    Description: CloudFront cache policy ID (default is the AWS-managed CachingDisabled policy)
+  OriginRequestPolicyId:
+    Type: String
+    Default: 216adef6-5c7f-47e4-b989-5492eafa07d3
+    Description: CloudFront origin request policy ID (default is the AWS-managed AllViewer policy)
+
+Mappings:
+  # AWS-managed prefix list IDs are regional. The template can only be deployed
+  # in these two regions (see contentspec.yaml). IDs were verified with
+  # DescribeManagedPrefixLists for com.amazonaws.global.cloudfront.origin-facing.
+  CloudFrontPrefixListByRegion:
+    us-east-1: { Id: pl-3b927c52 }
+    us-west-2: { Id: pl-82a045eb }
 
 Resources:
 
   # ---------- network ----------
   WorkshopVpc:
     Type: AWS::EC2::VPC
+    Metadata:
+      Description: >-
+        Isolated VPC dedicated to the workshop development machine, so nothing
+        in the lab touches a default VPC.
     Properties:
       CidrBlock: !Ref VpcCidr
       EnableDnsSupport: true
@@ -49,25 +73,46 @@ Resources:
 
   PublicSubnet:
     Type: AWS::EC2::Subnet
+    Metadata:
+      Description: >-
+        Single public subnet hosting the development machine; public
+        addressing is required for the CloudFront origin fetch.
     Properties:
       VpcId: !Ref WorkshopVpc
       CidrBlock: !Ref SubnetCidr
-      MapPublicIpOnLaunch: true
+      # Do not make every future instance public. The one workshop dev instance
+      # opts in explicitly on its primary network interface below.
+      MapPublicIpOnLaunch: false
       AvailabilityZone: !Select [0, !GetAZs '']
 
   Igw:
     Type: AWS::EC2::InternetGateway
+    Metadata:
+      Description: >-
+        Internet gateway providing the outbound path the development machine
+        needs to install tools and clone the workshop repository.
   IgwAttach:
     Type: AWS::EC2::VPCGatewayAttachment
+    Metadata:
+      Description: >-
+        Attaches the internet gateway to the workshop VPC; DefaultRoute
+        depends on this completing.
     Properties:
       VpcId: !Ref WorkshopVpc
       InternetGatewayId: !Ref Igw
   RouteTable:
     Type: AWS::EC2::RouteTable
+    Metadata:
+      Description: >-
+        Route table for the public subnet.
     Properties:
       VpcId: !Ref WorkshopVpc
   DefaultRoute:
     Type: AWS::EC2::Route
+    Metadata:
+      Description: >-
+        Default route to the internet gateway. Explicitly depends on
+        IgwAttach, since a route to an unattached gateway fails.
     DependsOn: IgwAttach
     Properties:
       RouteTableId: !Ref RouteTable
@@ -75,6 +120,12 @@ Resources:
       GatewayId: !Ref Igw
   SubnetRoute:
     Type: AWS::EC2::SubnetRouteTableAssociation
+    Metadata:
+      Description: >-
+        Associates the public subnet with the route table so the default route
+        applies to the development machine. Ordered after DefaultRoute so the
+        subnet is never associated with a route table that has no egress route.
+    DependsOn: DefaultRoute
     Properties:
       SubnetId: !Ref PublicSubnet
       RouteTableId: !Ref RouteTable
@@ -82,29 +133,107 @@ Resources:
   # ---------- security ----------
   DevSecurityGroup:
     Type: AWS::EC2::SecurityGroup
+    Metadata:
+      Description: >-
+        Security group for the development machine. Inbound is limited to the
+        CloudFront origin-facing prefix list on port 8080; outbound is HTTPS
+        plus VPC DNS. Optional Appendix A adds and then removes a temporary
+        /32 rule on TCP/UDP 1935.
     Properties:
       GroupDescription: >-
-        code-server access + game ports (this instance acts as the GameLift
-        Anywhere compute in Module 3; participant browsers connect to the
-        game server running on it).
+        CloudFront-restricted code-server origin. GameLift Anywhere TCP/UDP
+        1935 rules are added temporarily for the participant public /32 and
+        removed immediately after the Appendix A checkpoint.
       VpcId: !Ref WorkshopVpc
       SecurityGroupIngress:
-        # code-server origin: reached by CloudFront edges, not participants
-        # directly (password auth protects it either way)
-        - { IpProtocol: tcp, FromPort: 8080, ToPort: 8080, CidrIp: 0.0.0.0/0, Description: code-server HTTP origin for CloudFront }
-        - { IpProtocol: tcp, FromPort: 1935, ToPort: 1935, CidrIp: 0.0.0.0/0, Description: Anywhere game server (Module 3) }
-        - { IpProtocol: udp, FromPort: 1935, ToPort: 1935, CidrIp: 0.0.0.0/0, Description: Anywhere game server WebRTC/UDP }
-      # Explicit egress (instance needs outbound HTTPS/DNS for AWS APIs and
-      # package repositories). Stating it satisfies cfn_nag F1000 instead of
-      # relying on the implicit allow-all default.
+        # The browser reaches code-server through CloudFront. Restrict the HTTP
+        # origin to AWS-maintained CloudFront origin-facing addresses so direct
+        # access to the instance public IP cannot bypass CloudFront.
+        - IpProtocol: tcp
+          FromPort: 8080
+          ToPort: 8080
+          SourcePrefixListId: !FindInMap [CloudFrontPrefixListByRegion, !Ref 'AWS::Region', Id]
+          Description: code-server origin from CloudFront only
+      # The dev machine must download tools from official HTTPS package sources
+      # and call AWS APIs. DNS is restricted to the VPC address range; port 80
+      # is not needed because all documented installers use HTTPS.
       SecurityGroupEgress:
-        - { IpProtocol: tcp, FromPort: 443, ToPort: 443, CidrIp: 0.0.0.0/0, Description: "HTTPS outbound (AWS APIs, package repositories)" }
-        - { IpProtocol: tcp, FromPort: 80, ToPort: 80, CidrIp: 0.0.0.0/0, Description: HTTP outbound (package repositories) }
-        - { IpProtocol: udp, FromPort: 53, ToPort: 53, CidrIp: 0.0.0.0/0, Description: DNS out }
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+          Description: HTTPS outbound for AWS APIs and official package repositories
+        - IpProtocol: udp
+          FromPort: 53
+          ToPort: 53
+          CidrIp: !Ref VpcCidr
+          Description: DNS to the VPC resolver
+        - IpProtocol: tcp
+          FromPort: 53
+          ToPort: 53
+          CidrIp: !Ref VpcCidr
+          Description: DNS TCP fallback to the VPC resolver
+      Tags:
+        - { Key: Name, Value: gamelift-workshop-dev-sg }
+        - { Key: Workshop, Value: PixelRush }
+
+  # CloudFront standard logging (legacy) requires an ACL-enabled bucket. Logs
+  # are short-lived (7-day lifecycle expiry) and the bucket is torn down with
+  # the stack. Delete policies avoid retained resources blocking redeployment.
+  CodeServerLogBucket:
+    Type: AWS::S3::Bucket
+    Metadata:
+      Description: >-
+        Destination for CloudFront access logs from the code-server
+        distribution. Deleted with the stack (DeletionPolicy Delete) so event
+        accounts leave nothing behind.
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
+    Properties:
+      # Explicit name so the bucket can direct S3 server access logging at
+      # itself without a circular CloudFormation reference. Scoped by account
+      # and region to stay unique within the ephemeral workshop account.
+      BucketName: !Sub gamelift-workshop-logs-${AWS::AccountId}-${AWS::Region}
+      AccessControl: LogDeliveryWrite
+      OwnershipControls:
+        Rules:
+          - ObjectOwnership: ObjectWriter
+      # AWS-managed (SSE-S3 / AES256) encryption keeps the ephemeral workshop
+      # simple. Production workloads may prefer a customer-managed KMS key
+      # (aws:kms) for key rotation and CloudTrail audit of key usage.
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      # Server access logs land under a separate prefix in this same bucket.
+      # This satisfies S3 access-logging checks without introducing a second
+      # terminal log bucket. Logs expire with the rest of the bucket contents.
+      LoggingConfiguration:
+        DestinationBucketName: !Sub gamelift-workshop-logs-${AWS::AccountId}-${AWS::Region}
+        LogFilePrefix: s3-access/
+      LifecycleConfiguration:
+        Rules:
+          - Id: ExpireWorkshopAccessLogs
+            Status: Enabled
+            ExpirationInDays: 7
+      Tags:
+        - { Key: Workshop, Value: PixelRush }
 
   # ---------- IAM ----------
   DevInstanceRole:
     Type: AWS::IAM::Role
+    Metadata:
+      Description: >-
+        Instance role for the development machine. No AWS managed policies at
+        all: everything the workshop needs is granted explicitly by the two
+        customer-managed policies below — deployment permissions scoped by
+        resource prefix in DevInstanceCdkDeployPolicy, and IAM plus
+        security-group grants in DevInstanceWorkshopPolicy.
     Properties:
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
@@ -112,81 +241,275 @@ Resources:
           - Effect: Allow
             Principal: { Service: ec2.amazonaws.com }
             Action: sts:AssumeRole
-      ManagedPolicyArns:
-        # PowerUserAccess (all services EXCEPT IAM/Organizations/account
-        # management) instead of AdministratorAccess — the dev machine runs the
-        # workshop's `cdk deploy`, which needs broad service access but not
-        # account/org control. The scoped IAM below covers the roles CDK must
-        # create (cdk bootstrap roles + PixelRush* stack roles).
-        - arn:aws:iam::aws:policy/PowerUserAccess
-        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
-      Policies:
-        - PolicyName: CdkAndStackRoles
-          PolicyDocument:
-            Version: '2012-10-17'
-            Statement:
-              # Create/manage only the IAM roles the workshop's CDK app needs
-              # (account-scoped; the cdk-*/PixelRush* name wildcards match the
-              # roles CDK generates for its bootstrap + stacks).
-              - Effect: Allow
-                Action:
-                  - iam:CreateRole
-                  - iam:DeleteRole
-                  - iam:GetRole
-                  - iam:TagRole
-                  - iam:AttachRolePolicy
-                  - iam:DetachRolePolicy
-                  - iam:PutRolePolicy
-                  - iam:DeleteRolePolicy
-                  - iam:GetRolePolicy
-                Resource:
-                  - !Sub arn:aws:iam::${AWS::AccountId}:role/cdk-*
-                  - !Sub arn:aws:iam::${AWS::AccountId}:role/PixelRush*
-              # PassRole split out with a service condition so these roles can
-              # only be handed to the workshop's own AWS services, not anywhere.
-              - Effect: Allow
-                Action: iam:PassRole
-                Resource:
-                  - !Sub arn:aws:iam::${AWS::AccountId}:role/cdk-*
-                  - !Sub arn:aws:iam::${AWS::AccountId}:role/PixelRush*
-                Condition:
-                  StringEquals:
-                    iam:PassedToService:
-                      - cloudformation.amazonaws.com
-                      - gamelift.amazonaws.com
-                      - lambda.amazonaws.com
-                      - ec2.amazonaws.com
-              # cdk bootstrap/diff reads the roles it manages. Scope the reads
-              # to the same cdk-*/PixelRush* roles this policy can create, so no
-              # blanket iam:Get*/List* on '*'.
-              - Effect: Allow
-                Action:
-                  - iam:GetRole
-                  - iam:GetRolePolicy
-                  - iam:ListRolePolicies
-                  - iam:ListAttachedRolePolicies
-                  - iam:GetPolicy
-                  - iam:GetPolicyVersion
-                  - iam:ListPolicyVersions
-                Resource:
-                  - !Sub arn:aws:iam::${AWS::AccountId}:role/cdk-*
-                  - !Sub arn:aws:iam::${AWS::AccountId}:role/PixelRush*
-                  - !Sub arn:aws:iam::${AWS::AccountId}:policy/cdk-*
+
+  # Use a standalone managed policy rather than an inline role policy. IAM
+  # mutations remain restricted to CDK/PixelRush roles; temporary game-port
+  # changes are restricted to this stack's own security group.
+  DevInstanceWorkshopPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Metadata:
+      Description: >-
+        Workshop-scoped policy for the development machine role: IAM mutations
+        limited to cdk-* / PixelRush* roles and policies, plus temporary
+        game-port changes on this stack's own security group. DevInstance
+        depends on this so UserData never runs before the permissions exist.
+    Properties:
+      Description: Scoped IAM plus temporary SG access for the workshop dev machine
+      Roles: [!Ref DevInstanceRole]
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: ManageCdkAndPixelRushRoles
+            Effect: Allow
+            Action:
+              - iam:CreateRole
+              - iam:DeleteRole
+              - iam:GetRole
+              - iam:TagRole
+              - iam:AttachRolePolicy
+              - iam:DetachRolePolicy
+              - iam:PutRolePolicy
+              - iam:DeleteRolePolicy
+              - iam:GetRolePolicy
+              # Needed when cdk bootstrap upgrades an existing bootstrap stack.
+              - iam:UpdateAssumeRolePolicy
+              - iam:ListRoleTags
+              - iam:UntagRole
+            Resource:
+              - !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/cdk-*
+              - !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/PixelRush*
+          # cdk bootstrap creates a managed policy (the example permissions
+          # boundary) alongside its roles.
+          - Sid: ManageCdkManagedPolicies
+            Effect: Allow
+            Action:
+              - iam:CreatePolicy
+              - iam:DeletePolicy
+              - iam:CreatePolicyVersion
+              - iam:DeletePolicyVersion
+              - iam:TagPolicy
+            Resource: !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:policy/cdk-*
+          - Sid: PassWorkshopRoles
+            Effect: Allow
+            Action: iam:PassRole
+            Resource:
+              - !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/cdk-*
+              - !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/PixelRush*
+            Condition:
+              StringEquals:
+                iam:PassedToService:
+                  - cloudformation.amazonaws.com
+                  - gamelift.amazonaws.com
+                  - lambda.amazonaws.com
+                  - ec2.amazonaws.com
+          - Sid: ReadWorkshopRolePolicies
+            Effect: Allow
+            Action:
+              - iam:GetRole
+              - iam:GetRolePolicy
+              - iam:ListRolePolicies
+              - iam:ListAttachedRolePolicies
+              - iam:GetPolicy
+              - iam:GetPolicyVersion
+              - iam:ListPolicyVersions
+            Resource:
+              - !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/cdk-*
+              - !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/PixelRush*
+              - !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:policy/cdk-*
+          - Sid: ManageTemporaryGamePortRules
+            Effect: Allow
+            Action:
+              - ec2:AuthorizeSecurityGroupIngress
+              - ec2:RevokeSecurityGroupIngress
+            Resource: !Sub arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:security-group/${DevSecurityGroup}
+
+  # Second managed policy on purpose: IAM caps a managed policy document at
+  # 6144 characters and DevInstanceWorkshopPolicy above is already close to it.
+  # This one replaces the PowerUserAccess that used to be attached to the role,
+  # scoping every write to the CDKToolkit / PixelRush* / cdk-* resource names.
+  DevInstanceCdkDeployPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Metadata:
+      Description: >-
+        CDK bootstrap and PixelRush stack deployment permissions for the
+        development machine, scoped by resource prefix. Resource "*" survives
+        only for CloudFormation APIs that do not support resource-level
+        authorization and for cross-service read-only discovery.
+    Properties:
+      Description: CDK bootstrap + PixelRush deployment, scoped by resource prefix
+      Roles: [!Ref DevInstanceRole]
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          # cdk bootstrap (CDKToolkit) and the four cdk deploy runs.
+          - Sid: DeployWorkshopStacks
+            Effect: Allow
+            Action:
+              - cloudformation:CreateStack
+              - cloudformation:UpdateStack
+              - cloudformation:DeleteStack
+              - cloudformation:CreateChangeSet
+              - cloudformation:DeleteChangeSet
+              - cloudformation:ExecuteChangeSet
+              - cloudformation:DescribeChangeSet
+              - cloudformation:DescribeStacks
+              - cloudformation:DescribeStackEvents
+              - cloudformation:DescribeStackResources
+              - cloudformation:GetTemplate
+              - cloudformation:RollbackStack
+              - cloudformation:ContinueUpdateRollback
+              - cloudformation:TagResource
+              - cloudformation:UntagResource
+            Resource:
+              - !Sub arn:${AWS::Partition}:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/CDKToolkit/*
+              - !Sub arn:${AWS::Partition}:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/PixelRush*/*
+          # These three APIs have no resource-level authorization. Read-only.
+          - Sid: CloudFormationAccountLevelCalls
+            Effect: Allow
+            Action:
+              - cloudformation:ListStacks
+              - cloudformation:GetTemplateSummary
+              - cloudformation:ValidateTemplate
+            Resource: '*'
+          # Staging resources that cdk bootstrap creates. Actions are enumerated
+          # rather than wildcarded: each one maps to a property the bootstrap
+          # template sets on the staging bucket (encryption, versioning, public
+          # access block, lifecycle, ACL, bucket policy).
+          - Sid: CdkStagingBucket
+            Effect: Allow
+            Action:
+              - s3:CreateBucket
+              - s3:DeleteBucket
+              - s3:ListBucket
+              - s3:GetBucketLocation
+              - s3:PutBucketAcl
+              - s3:GetBucketAcl
+              - s3:PutEncryptionConfiguration
+              - s3:GetEncryptionConfiguration
+              - s3:PutBucketPublicAccessBlock
+              - s3:GetBucketPublicAccessBlock
+              - s3:PutBucketVersioning
+              - s3:GetBucketVersioning
+              - s3:PutLifecycleConfiguration
+              - s3:GetLifecycleConfiguration
+              - s3:PutBucketPolicy
+              - s3:GetBucketPolicy
+              - s3:DeleteBucketPolicy
+              - s3:PutBucketTagging
+              - s3:GetBucketTagging
+            Resource:
+              - !Sub arn:${AWS::Partition}:s3:::cdk-*-assets-${AWS::AccountId}-${AWS::Region}
+              - !Sub arn:${AWS::Partition}:s3:::cdk-*-assets-${AWS::AccountId}-${AWS::Region}/*
+          # Mirrors the bootstrap template's ECR repository properties
+          # (ImageTagMutability, LifecyclePolicy, RepositoryPolicyText).
+          - Sid: CdkStagingEcr
+            Effect: Allow
+            Action:
+              - ecr:CreateRepository
+              - ecr:DeleteRepository
+              - ecr:DescribeRepositories
+              - ecr:PutImageTagMutability
+              - ecr:PutLifecyclePolicy
+              - ecr:GetLifecyclePolicy
+              - ecr:DeleteLifecyclePolicy
+              - ecr:SetRepositoryPolicy
+              - ecr:GetRepositoryPolicy
+              - ecr:DeleteRepositoryPolicy
+              - ecr:TagResource
+              - ecr:UntagResource
+              - ecr:ListTagsForResource
+            Resource: !Sub arn:${AWS::Partition}:ecr:${AWS::Region}:${AWS::AccountId}:repository/cdk-*
+          # The bootstrap version parameter the CDK CLI reads before every
+          # deploy. Resource-scoped, so this GetParameter is not an unrestricted
+          # data-exfiltration path (see the ReadOnlyDiscovery note below).
+          - Sid: CdkBootstrapParameter
+            Effect: Allow
+            Action:
+              - ssm:PutParameter
+              - ssm:GetParameter
+              - ssm:GetParameters
+              - ssm:DeleteParameter
+              - ssm:AddTagsToResource
+              - ssm:RemoveTagsFromResource
+              - ssm:ListTagsForResource
+            Resource: !Sub arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/cdk-bootstrap/*
+          # How cdk deploy actually works: the CLI assumes the bootstrap roles,
+          # and cdk-*-cfn-exec-role creates the resources. That is why this role
+          # needs no GameLift / Lambda / DynamoDB / CloudFront write permissions.
+          - Sid: AssumeCdkBootstrapRoles
+            Effect: Allow
+            Action: sts:AssumeRole
+            Resource: !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/cdk-*
+          # Only used by scripts/run-anywhere.sh in the optional Appendix A.
+          # Delete this statement if you drop that appendix; the main path
+          # (Modules 1-7) never calls these APIs.
+          - Sid: AnywhereComputeForOptionalAppendixA
+            Effect: Allow
+            Action:
+              - gamelift:RegisterCompute
+              - gamelift:DeregisterCompute
+              - gamelift:DescribeCompute
+              - gamelift:ListCompute
+              - gamelift:GetComputeAuthToken
+            Resource: !Sub arn:${AWS::Partition}:gamelift:${AWS::Region}:${AWS::AccountId}:fleet/*
+          # Participants verify stack outputs and fleet state from the terminal.
+          # Read-only: nothing here can create, modify or delete a resource.
+          # Deliberately excludes the data-exfiltration actions (s3:GetObject,
+          # ssm:GetParameter*, secretsmanager:GetSecretValue): the only SSM read
+          # the CDK CLI needs is the bootstrap version, granted on
+          # parameter/cdk-bootstrap/* above, and the code-server secret is
+          # granted on its own ARN in DevInstanceWorkshopPolicy.
+          - Sid: ReadOnlyDiscovery
+            Effect: Allow
+            Action:
+              - gamelift:Describe*
+              - gamelift:List*
+              - ec2:Describe*
+              - logs:Describe*
+              - logs:FilterLogEvents
+              - lambda:Get*
+              - lambda:List*
+              - dynamodb:Describe*
+              - dynamodb:List*
+              - apigateway:GET
+              - cloudfront:Get*
+              - cloudfront:List*
+              - sns:Get*
+              - sns:List*
+              - iam:Get*
+              - iam:List*
+              - s3:ListAllMyBuckets
+              - sts:GetCallerIdentity
+            Resource: '*'
 
   DevInstanceProfile:
     Type: AWS::IAM::InstanceProfile
+    Metadata:
+      Description: >-
+        Instance profile that binds DevInstanceRole to the development
+        machine.
     Properties:
       Roles: [!Ref DevInstanceRole]
 
   # ---------- dev machine ----------
   DevInstance:
     Type: AWS::EC2::Instance
-    # Workshop resource: replace/delete with the stack (no data to retain).
+    Metadata:
+      Description: >-
+        Cloud development machine running code-server (VS Code in the browser)
+        with Node, Go, the AWS CLI and CDK pre-installed and the workshop
+        repository pre-cloned. Also serves as the GameLift Anywhere compute in
+        optional Appendix A. CreationPolicy waits for cfn-signal from
+        UserData.
+    # Wait for both managed policies to be attached, so UserData and the
+    # participant's first cdk commands never race the permission grants.
+    # SubnetRoute (which itself waits on DefaultRoute -> IgwAttach) guarantees
+    # egress exists before UserData runs dnf install and git clone; without it
+    # the instance can boot with no route, UserData fails, cfn-signal never
+    # arrives and the stack sits until the 20-minute CreationPolicy times out.
+    DependsOn: [DevInstanceWorkshopPolicy, DevInstanceCdkDeployPolicy, SubnetRoute]
     DeletionPolicy: Delete
     UpdateReplacePolicy: Delete
-    # Hold the stack in CREATE_IN_PROGRESS until UserData signals success, so
-    # downstream consumers (and participants) don't act on a half-provisioned
-    # dev machine. UserData runs cfn-signal at the end (and on failure via trap).
     CreationPolicy:
       ResourceSignal:
         Count: 1
@@ -194,9 +517,18 @@ Resources:
     Properties:
       InstanceType: !Ref InstanceType
       ImageId: '{{resolve:ssm:/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64}}'
-      SubnetId: !Ref PublicSubnet
-      SecurityGroupIds: [!Ref DevSecurityGroup]
+      EbsOptimized: true
       IamInstanceProfile: !Ref DevInstanceProfile
+      NetworkInterfaces:
+        - AssociatePublicIpAddress: true
+          DeleteOnTermination: true
+          DeviceIndex: '0'
+          GroupSet: [!Ref DevSecurityGroup]
+          SubnetId: !Ref PublicSubnet
+      MetadataOptions:
+        HttpEndpoint: enabled
+        HttpTokens: required
+        HttpPutResponseHopLimit: 1
       BlockDeviceMappings:
         - DeviceName: /dev/xvda
           Ebs: { VolumeSize: !Ref VolumeSizeGb, VolumeType: gp3, Encrypted: true }
@@ -204,10 +536,8 @@ Resources:
       UserData:
         Fn::Base64: !Sub |
           #!/bin/bash
-          set -euxo pipefail
+          set -euo pipefail
           exec > /var/log/workshop-init.log 2>&1
-          # cloud-init runs UserData without HOME; the code-server install
-          # script dereferences $HOME and set -u would kill the whole script
           export HOME=/root
 
           # Signal CloudFormation on exit: SUCCESS (0) or FAILURE otherwise, so
@@ -219,9 +549,7 @@ Resources:
           useradd -m workshop || true
           usermod -aG docker workshop
 
-          # Clone the workshop repository, then drop the tutorial-authoring dir
-          # (workshop/) — participants read the tutorial on the Workshop Studio
-          # site, not in the checkout.
+          # Clone the workshop repository, then drop the tutorial-authoring dir.
           sudo -u workshop bash -c '
             cd /home/workshop
             git clone ${RepoUrl} gamelift-workshop || true
@@ -229,11 +557,9 @@ Resources:
             rm -rf workshop
           '
 
-          # Run the repository's machine-setup script.
           bash /home/workshop/gamelift-workshop/scripts/install-dev-tools.sh \
             "${GoVersion}" "${CodeServerVersion}"
 
-          # Install workshop project dependencies.
           sudo -u workshop bash -c '
             cd /home/workshop/gamelift-workshop
             (cd infra && npm install) || true
@@ -241,28 +567,33 @@ Resources:
             (cd frontend && npm install) || true
           '
 
-          # code-server config (VS Code in the browser). No login required: the
-          # instance is reachable only through the CloudFront distribution in
-          # front (its origin port is not exposed to participants directly), and
-          # the *.cloudfront.net URL is unguessable and unique per deployment —
-          # so this transient, single-user dev box is gated by the CloudFront
-          # entry point rather than a password. Plain HTTP on 8080; TLS and the
-          # public 443 certificate are terminated at CloudFront.
+          # Per-stack code-server password, derived from the GUID segment of this
+          # stack's ID (arn:...:stack/<name>/<guid>). Each participant stack gets
+          # a different 36-character value, and the same expression is published
+          # as the CodeServerPassword event output so participants read it
+          # straight from the event page — no console lookup needed.
+          STACK_GUID=$(echo '${AWS::StackId}' | awk -F/ '{print $3}')
           mkdir -p /home/workshop/.config/code-server
           cat > /home/workshop/.config/code-server/config.yaml << CFG
           bind-addr: 0.0.0.0:8080
-          auth: none
+          auth: password
+          password: $STACK_GUID
           cert: false
           CFG
+          unset STACK_GUID
           chown -R workshop:workshop /home/workshop/.config
+          chmod 700 /home/workshop/.config/code-server
+          chmod 600 /home/workshop/.config/code-server/config.yaml
 
-          # the Anywhere script needs the instance public IP for RegisterCompute
+          # RegisterCompute uses the instance public IP. The security group ID
+          # is exported so the participant can temporarily allow only their own
+          # public /32 on TCP/UDP 1935 during Appendix A.
           TOKEN=$(curl -sX PUT http://169.254.169.254/latest/api/token -H 'X-aws-ec2-metadata-token-ttl-seconds: 300')
           PUB_IP=$(curl -s -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/public-ipv4)
           echo "export COMPUTE_IP=$PUB_IP" >> /home/workshop/.bashrc
           echo "export AWS_REGION=${AWS::Region}" >> /home/workshop/.bashrc
+          echo "export DEV_SECURITY_GROUP_ID=${DevSecurityGroup}" >> /home/workshop/.bashrc
 
-          # run code-server as the workshop user
           cat > /etc/systemd/system/code-server.service << SVC
           [Unit]
           Description=code-server
@@ -277,60 +608,72 @@ Resources:
           systemctl enable --now code-server
 
   # ---------- CloudFront in front of code-server ----------
-  # Participants open https://xxxx.cloudfront.net — a real TLS cert on 443,
-  # which corporate networks accept (bare-IP origins are often blocked).
-  # WebSockets (VS Code terminal) pass through CloudFront natively.
+  # Participants use the AWS-provided cloudfront.net certificate. A custom ACM
+  # certificate would require a centrally owned domain that temporary Workshop
+  # Studio accounts do not have. Viewer traffic is HTTPS; the origin is HTTP on
+  # port 8080 and restricted to CloudFront's AWS-managed prefix list.
   CodeServerDistribution:
     Type: AWS::CloudFront::Distribution
+    # !GetAtt DevInstance.PublicDnsName below already creates an implicit
+    # dependency, and DevInstance carries a CreationPolicy, so the origin cannot
+    # be wired up before cfn-signal reports the instance ready. DependsOn is
+    # stated explicitly so that ordering guarantee is obvious to readers.
+    DependsOn: DevInstance
+    Metadata:
+      Description: >-
+        CloudFront distribution that is the sole public entry point to
+        code-server on the development machine. Terminates HTTPS for the browser
+        IDE using the AWS-provided cloudfront.net certificate.
     Properties:
       DistributionConfig:
         Enabled: true
         Comment: gamelift-workshop code-server
+        Logging:
+          Bucket: !GetAtt CodeServerLogBucket.DomainName
+          IncludeCookies: false
+          Prefix: code-server/
+        ViewerCertificate:
+          CloudFrontDefaultCertificate: true
         DefaultCacheBehavior:
           TargetOriginId: code-server
           ViewerProtocolPolicy: redirect-to-https
           AllowedMethods: [GET, HEAD, OPTIONS, PUT, POST, PATCH, DELETE]
-          # AWS-managed policy IDs (fixed, identical in every account/region —
-          # not account-specific, so hardcoding is the documented usage):
-          #   CachingDisabled          = 4135ea2d-6df8-44a3-9df3-4b5a84be39ad
-          #   AllViewer                = 216adef6-5c7f-47e4-b989-5492eafa07d3
-          # AllViewer (not ...ExceptHostHeader) forwards the viewer Host header
-          # so code-server sees Host == Origin == the cloudfront domain;
-          # otherwise its WebSocket CSRF check rejects the connection (1006).
-          CachePolicyId: 4135ea2d-6df8-44a3-9df3-4b5a84be39ad
-          OriginRequestPolicyId: 216adef6-5c7f-47e4-b989-5492eafa07d3
+          # Defaults are the AWS-managed CachingDisabled and AllViewer policy
+          # IDs (global fixed identifiers). AllViewer is required for
+          # code-server WebSocket origin/host validation. Overridable via the
+          # CachePolicyId / OriginRequestPolicyId parameters.
+          CachePolicyId: !Ref CachePolicyId
+          OriginRequestPolicyId: !Ref OriginRequestPolicyId
         Origins:
           - Id: code-server
             DomainName: !GetAtt DevInstance.PublicDnsName
             CustomOriginConfig:
               HTTPPort: 8080
-              # http-only is required here, not a security downgrade: the origin
-              # is a bare EC2 instance reached by its public DNS name, for which
-              # no CA can issue a trusted TLS certificate (only AWS controls the
-              # *.compute.amazonaws.com domain). HTTPS to such an origin would
-              # require either a self-signed cert (which CloudFront rejects) or a
-              # custom domain + ACM cert, neither of which a transient workshop
-              # dev box has. The PARTICIPANT-facing hop is still encrypted:
-              # ViewerProtocolPolicy above is redirect-to-https, so browsers
-              # always use TLS to CloudFront. The unencrypted CloudFront->origin
-              # hop stays inside AWS's network; code-server's own password auth
-              # gates access. This is the standard pattern for fronting a
-              # no-domain origin with CloudFront TLS.
+              # The origin is a bare EC2 public DNS name, so it cannot obtain a
+              # CA-issued certificate for *.compute.amazonaws.com. CloudFront
+              # terminates participant TLS and the security group prevents
+              # non-CloudFront clients from reaching this HTTP origin directly.
               OriginProtocolPolicy: http-only
 
 Outputs:
   CodeServerURL:
-    Description: Open this in your browser to launch the VS Code dev environment (no login required)
+    Description: Open this in your browser and sign in with the CodeServerPassword below
     Value: !Sub https://${CodeServerDistribution.DomainName}
+  CodeServerPassword:
+    Description: >-
+      Password for this participant's code-server. Unique per stack (the GUID
+      segment of the stack ID) and valid only for the lifetime of this temporary
+      event account.
+    Value: !Select [2, !Split ['/', !Ref 'AWS::StackId']]
   InstancePublicIp:
-    Description: Used automatically by run-anywhere.sh (COMPUTE_IP) in Module 3
+    Description: Used automatically by run-anywhere.sh (COMPUTE_IP) in Appendix A (optional)
     Value: !GetAtt DevInstance.PublicIp
   VpcId:
-    Description: Workshop VPC ID (for VPC peering / troubleshooting)
+    Description: Workshop VPC ID (for troubleshooting)
     Value: !Ref WorkshopVpc
   DevSecurityGroupId:
-    Description: Dev machine security group ID (for rule changes)
+    Description: Exported as DEV_SECURITY_GROUP_ID for temporary Appendix A /32 rules
     Value: !Ref DevSecurityGroup
   DevInstanceId:
-    Description: Dev machine instance ID (for SSM Session Manager access)
+    Description: Dev machine instance ID (for locating the instance in the console)
     Value: !Ref DevInstance

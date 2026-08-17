@@ -12,7 +12,9 @@ workshop/
 ├── config.toml          Hugo 配置（含 en/zh 双语）
 ├── content/             教程内容，双语（*.en.md / *.zh.md）
 │   ├── _index.*.md      首页
-│   ├── 1_Introduction/  … 9_Appendix_MultiRegion/
+│   ├── 1_Introduction/ … 7_Conclusion/  正文模块
+│   ├── 8_Appendix_Anywhere/             附录 A：GameLift Anywhere（可选）
+│   └── 9_Appendix_MultiRegion/          附录 B：多区域（可选）
 └── static/
     └── infrastructure/
         └── workshop-studio.yaml   Workshop Studio 账号预置 CFN 模板
@@ -38,8 +40,15 @@ hugo server -D    # http://localhost:1313，右上角可切换 English/简体中
 
 ## 发布
 
-base 模板自带 `webspec.yml`（CodeBuild）：安装 Hugo → `hugo` 构建 → 产物在
-`public/`。接入 Amplify Hosting 或 S3+CloudFront 均可。
+本仓库自带 `PixelRushDocsStack`（`infra/lib/docs-stack.ts`，S3 + CloudFront）：
+
+```bash
+cd workshop && hugo --minify    # 产物写入 workshop/public/（已 gitignore）
+cd ../infra && npx cdk deploy PixelRushDocsStack --exclusively --require-approval never
+```
+
+`--exclusively` 是必需的：否则 CDK 会连带部署依赖栈。部署后 CloudFront 会自动失效缓存，
+站点地址见栈输出 `DocsUrl`。
 
 ## 待办（发布前）
 
@@ -50,4 +59,4 @@ base 模板自带 `webspec.yml`（CodeBuild）：安装 Hugo → `hugo` 构建 �
 - [ ] Workshop Studio 事件配置：把 `workshop-studio.yaml` 注册为事件模板，
       Event Outputs 暴露 CodeServerURL / CodeServerPassword
 - [ ] 讲师侧：提前部署官方 AWS ARENA（本仓库主 README 的部署流程），
-      将 SiteUrl 写入 6_RaceDay 讲师提示
+      将 SiteUrl 写入 5_RaceDay 讲师提示

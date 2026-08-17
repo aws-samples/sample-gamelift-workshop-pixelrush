@@ -2,12 +2,10 @@
 title: "Amazon GameLift Servers 实战"
 chapter: true
 weight: 1
-
 ---
 
-### 部署你的第一个多人在线游戏
+## 部署你的第一个多人在线游戏
 
-<br>
 
 欢迎！在大约 **2 小时**内，你将在 AWS 上部署并运营一个完整的多人在线游戏——
 复古像素风赛车游戏 **Pixel Rush**——并借助它学习 **Amazon GameLift Servers**
@@ -15,11 +13,12 @@ weight: 1
 
 - 什么是专用**游戏服务器**，实时多人游戏为什么需要它
 - 每个托管游戏都要实现的 GameLift **Server SDK 生命周期**
-- **GameLift Anywhere**——把自己的机器注册为 fleet 算力，快速迭代
 - **托管 EC2 fleet**——生产级托管：build、运行时配置、会话队列
 - **FlexMatch**——基于规则的匹配、票据与事件通知
+- 以及可选的 **GameLift Anywhere**——把自己的机器注册为 fleet 算力，
+  实现快速迭代（附录 A）
 
-![Pixel Rush 游戏画面](/images/gl-ws-game.png)
+![俯视视角的像素赛车画面：红色玩家车领先于两辆灰色对手车，后方是标注 Speedy-Bot、Drift-Bot、Nitro-Bot 的 NPC 车，左上角 HUD 显示 POS 1/4](/images/gl-ws-game.png)
 最后，你会和其他学员在共享竞技场同场对战——而匹配、会话放置、实时状态同步的
 每一环，都跑在**你亲手部署**的基础设施上。
 
@@ -59,7 +58,7 @@ weight: 1
 ## 适合谁
 
 想动手入门在 AWS 上托管实时多人游戏的开发者、解决方案架构师和技术型游戏构建者。
-你**不需要**有游戏开发或 GameLift 经验——游戏已经为你写好了。
+你**不需要**有游戏开发或 GameLift Servers 经验——游戏已经为你写好了。
 
 ## 前置条件
 
@@ -72,8 +71,11 @@ weight: 1
 
 ## 费用
 
-在自己账号里运行本 workshop 大约 **$0.20–0.50/小时**（主要是一两台 `c5.large`
-GameLift 实例），**只要完成清理模块**，2 小时总花费远低于 **$1**。详见
+费用几乎全部来自托管 fleet：us-east-1 一台 `c5.large` GameLift 实例
+**$0.109/小时**（fleet 最多可伸缩到两台）。fleet 只在 workshop 后半段存在，
+因此 2 小时通常在 **$0.15** 左右，总花费远低于 **$1**——**前提是完成清理模块**。
+其余组件（Lambda、DynamoDB、API Gateway、CloudFront）按请求计费，在 workshop
+的流量下几乎可忽略。详见
 [Amazon GameLift Servers 定价](https://aws.amazon.com/gamelift/pricing/)和
 [EC2 定价](https://aws.amazon.com/ec2/pricing/)。AWS 活动现场使用提供的临时账号，
 对你免费。
@@ -84,13 +86,16 @@ GameLift 实例），**只要完成清理模块**，2 小时总花费远低于 *
 | ---------------------------------- | ----- |
 | 1. 引言——为什么需要游戏服务器、GameLift 概念      | 10 分钟 |
 | 2. 环境准备——部署游戏后端                    | 20 分钟 |
-| 3. GameLift Anywhere——你的机器变成 fleet | 25 分钟 |
-| 4. 托管 Fleet——EC2 上的生产托管            | 25 分钟 |
-| 5. FlexMatch——基于规则的匹配              | 20 分钟 |
-| 6. 决赛日——验证自己的服务器，然后全员对战            | 15 分钟 |
-| 7. 资源清理                            | 5 分钟  |
-| 8. 总结与进阶                           | 5 分钟  |
-| 附录：多区域 fleet（可选挑战）                 | 20 分钟 |
+| 3. 托管 Fleet——EC2 上的生产托管 + Server SDK  | 30 分钟 |
+| 4. FlexMatch——基于规则的匹配              | 20 分钟 |
+| 5. 决赛日——验证自己的服务器，然后全员对战            | 15 分钟 |
+| 6. 资源清理                            | 5 分钟  |
+| 7. 总结与进阶                           | 5 分钟  |
+| 附录 A：GameLift Anywhere——你的机器变成 fleet 算力（可选） | 15 分钟 |
+| 附录 B：多区域 fleet（可选挑战）               | 20 分钟 |
+
+主线是模块 1–7（约 1 小时 45 分钟）。两个附录都是可选的，都建立在模块 3
+部署的 fleet 之上，做的顺序随意——也可以完全跳过。
 
 {{% notice warning %}}
 本 workshop 的示例代码是教学内容，并非生产级软件。它演示 GameLift 集成模式，

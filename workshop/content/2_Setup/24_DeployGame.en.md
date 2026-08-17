@@ -5,7 +5,7 @@ weight: 24
 
 ## What you're deploying
 
-Two CDK stacks — the *web* half of the game, no GameLift yet:
+Two CDK stacks — the *web* half of the game, no Amazon GameLift Servers yet:
 
 - **PixelRushBackendStack** — API Gateway + Lambda + DynamoDB (login, garage,
   shop, leaderboard, matchmaking API) and a WebSocket API for notifications
@@ -27,27 +27,39 @@ PixelRushBackendStack.ApiUrl      = https://xxxx.execute-api.us-east-1.amazonaws
 PixelRushBackendStack.WsNotifyUrl = wss://yyyy.execute-api.us-east-1.amazonaws.com/prod
 ```
 
+Confirm the stack finished before continuing:
+
+```bash
+aws cloudformation describe-stacks --stack-name PixelRushBackendStack \
+  --query "Stacks[0].StackStatus" --output text
+```
+
+Expected: `CREATE_COMPLETE` (or `UPDATE_COMPLETE` on a redeploy).
+
 {{% notice tip %}}
-Save **ApiUrl** somewhere — you'll paste it into the game in Module 6 to prove
+Save **ApiUrl** somewhere — you'll paste it into the game in Module 5 to prove
 your deployment works end to end.
 {{% /notice %}}
 
 ## 2. Build the frontend, then deploy it
 
-Write the WebSocket URL into the frontend config, build the site, then deploy
-the frontend stack (which uploads the built site to CloudFront):
+Write the WebSocket URL into the frontend config. Read it straight from the
+stack output so there is no copy-paste error:
 
 ```bash
-echo "{ \"wsNotifyUrl\": \"<PASTE-WsNotifyUrl-HERE>\" }" > ../frontend/public/config.json
-(cd ../frontend && npm run build)
-npx cdk deploy PixelRushFrontendStack --require-approval never
+WS_URL=$(aws cloudformation describe-stacks --stack-name PixelRushBackendStack \
+  --query "Stacks[0].Outputs[?OutputKey=='WsNotifyUrl'].OutputValue" --output text)
+echo "{ \"wsNotifyUrl\": \"$WS_URL\" }" > ../frontend/public/config.json
 ```
 
-Before the build, verify the file was written and is valid JSON — a typo in the
-pasted URL would otherwise fail silently later:
+Verify the config is valid JSON and captured a real `wss://` URL **before
+building** — an empty or malformed URL would otherwise fail silently later:
 
 ```bash
 cat ../frontend/public/config.json | python3 -m json.tool
+grep -q '"wsNotifyUrl": *"wss://' ../frontend/public/config.json \
+  && echo "config OK" \
+  || echo "FIX config.json — the wsNotifyUrl is empty; check the stack name/region and re-run the command above"
 ```
 
 Expected — the URL echoed back, pretty-printed with no parse error:
@@ -58,13 +70,44 @@ Expected — the URL echoed back, pretty-printed with no parse error:
 }
 ```
 
+Once the JSON is valid, build the site and deploy the frontend stack (which
+uploads the built site to CloudFront):
+
+```bash
+(cd ../frontend && npm run build)
+test -d ../frontend/dist && echo "build OK: dist/ ready to publish"
+```
+
+Expected — the build ends and the check prints:
+
+```
+build OK: dist/ ready to publish
+```
+
+If it prints nothing, the build failed: scroll up for the error, fix it, and
+re-run before deploying. Otherwise you would wait out a 5–10 minute CloudFront
+deploy only to publish nothing.
+
+```bash
+npx cdk deploy PixelRushFrontendStack --require-approval never
+```
+
 Outputs the site URL:
 
 ```
 PixelRushFrontendStack.SiteUrl = https://zzzz.cloudfront.net
 ```
 
-{{% notice note %}}
+Confirm this stack finished too:
+
+```bash
+aws cloudformation describe-stacks --stack-name PixelRushFrontendStack \
+  --query "Stacks[0].StackStatus" --output text
+```
+
+Expected: `CREATE_COMPLETE` (or `UPDATE_COMPLETE` on a redeploy).
+
+{{% notice info %}}
 Building before deploying is why we split this into two steps: the frontend
 stack publishes `frontend/dist`, so that folder must exist first. (Deploy the
 frontend before building and CDK warns `frontend/dist not found` and uploads
@@ -85,7 +128,7 @@ Open **SiteUrl** in your browser:
 1. On the login screen, leave the server set to **☁️ AWS ARENA** (the default).
    On *your own* SiteUrl this means "this site's own backend" — the one you
    just deployed. (The **🔧 MY SERVER** option is for pointing *someone else's*
-   frontend at your backend; you'll use it in Module 6, not here.)
+   frontend at your backend; you'll use it in Module 5, not here.)
 2. Enter any racer name + the workshop password `gamelift` → **START ENGINE**
 3. You land in the lobby as a level-1 rookie with a random car and coin balance
 4. Browse **GARAGE** and **SHOP** — buy a car if you have the coins!

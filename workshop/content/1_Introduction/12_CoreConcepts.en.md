@@ -17,17 +17,17 @@ Lambda and back to players)*
 
 | Component | One-liner | You'll touch it in |
 |---|---|---|
-| **Build** | Your uploaded server binary + install script | Module 4 |
-| **Fleet (managed EC2)** | AWS-managed instances that run your server processes | Module 4 |
-| **Fleet (Anywhere)** | *Your own* hardware registered as fleet compute | Module 3 |
-| **Game Session** | One running match on one server process | Modules 3–6 |
-| **Game Session Queue** | Picks which fleet/location hosts each new session | Module 4 |
-| **FlexMatch** | Groups players by rules, then asks the queue for a session | Module 5 |
+| **Build** | Your uploaded server binary + install script | Module 3 |
+| **Fleet (managed EC2)** | AWS-managed instances that run your server processes | Module 3 |
+| **Fleet (Anywhere)** | *Your own* hardware registered as fleet compute | Appendix A (optional) |
+| **Game Session** | One running match on one server process | Modules 3–5 |
+| **Game Session Queue** | Picks which fleet/location hosts each new session | Module 3 |
+| **FlexMatch** | Groups players by rules, then asks the queue for a session | Module 4 |
 
 ## The Server SDK lifecycle
 
 For GameLift to manage your server process, the process must speak the **Server
-SDK protocol**. Four callbacks are the whole story:
+SDK protocol**. Five lifecycle moments are the whole story:
 
 ```
  process start

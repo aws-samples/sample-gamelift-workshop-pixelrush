@@ -31,27 +31,27 @@ SLUGS = {
     "22_OwnAccount": "own-account",
     "23_Bootstrap": "bootstrap",
     "24_DeployGame": "deploy-game",
-    "3_GameLiftAnywhere": "anywhere",
-    "31_Concept": "concept",
-    "32_ServerLifecycle": "server-lifecycle",
-    "33_RunAnywhere": "run-anywhere",
-    "4_ManagedFleet": "managed-fleet",
-    "41_BuildAndDeploy": "build-and-deploy",
-    "42_FleetAnatomy": "fleet-anatomy",
-    "43_LatencyRouting": "latency-routing",
-    "44_Verify": "verify",
-    "5_FlexMatch": "flexmatch",
-    "51_RuleSets": "rule-sets",
-    "52_TicketLifecycle": "ticket-lifecycle",
-    "53_MatchExercise": "match-exercise",
-    "6_RaceDay": "race-day",
-    "61_VerifyMyServer": "verify-my-server",
-    "62_AWSArena": "aws-arena",
-    "7_Cleanup": "cleanup",
-    "71_Destroy": "destroy",
-    "8_Conclusion": "conclusion",
-    "81_Recap": "recap",
-    "82_NextSteps": "next-steps",
+    "3_ManagedFleet": "managed-fleet",
+    "31_BuildAndDeploy": "build-and-deploy",
+    "32_FleetAnatomy": "fleet-anatomy",
+    "33_ServerSDK": "server-sdk",
+    "34_LatencyRouting": "latency-routing",
+    "35_Verify": "verify",
+    "4_FlexMatch": "flexmatch",
+    "41_RuleSets": "rule-sets",
+    "42_TicketLifecycle": "ticket-lifecycle",
+    "43_MatchExercise": "match-exercise",
+    "5_RaceDay": "race-day",
+    "51_VerifyMyServer": "verify-my-server",
+    "52_AWSArena": "aws-arena",
+    "6_Cleanup": "cleanup",
+    "61_Destroy": "destroy",
+    "7_Conclusion": "conclusion",
+    "71_Recap": "recap",
+    "72_NextSteps": "next-steps",
+    "8_Appendix_Anywhere": "anywhere",
+    "81_Concept": "concept",
+    "82_RunAnywhere": "run-anywhere",
     "9_Appendix_MultiRegion": "multi-region",
     "91_Challenge": "challenge",
 }
@@ -120,14 +120,16 @@ localeCodes:
 
 # Deployed automatically into Workshop Studio-provisioned accounts (AWS events):
 # a browser IDE dev machine that also serves as the GameLift Anywhere compute
-# in Module 3. Participants in their own accounts skip this (BYOA path in Setup).
+# in Appendix A (optional). Participants in their own accounts skip this (BYOA path in Setup).
 infrastructure:
   cloudformationTemplates:
     - templateLocation: static/infrastructure/workshop-studio.yaml
       label: gamelift-workshop-devmachine
       participantVisibleStackOutputs:
         - CodeServerURL
+        - CodeServerPassword
         - InstancePublicIp
+        - DevSecurityGroupId
 
 awsAccountConfig:
   accountSources:
@@ -148,8 +150,8 @@ awsAccountConfig:
       optional:
         - us-west-2
         - ap-northeast-1
-    # The dev-machine template is region-agnostic (SSM public AMI parameter,
-    # dynamic GetAZs); us-west-2 is the resiliency fallback.
+    # The dev-machine template intentionally deploys only in regions present
+    # in CloudFrontPrefixListByRegion; us-west-2 is the resiliency fallback.
     deployableRegions:
       recommended:
         - us-east-1

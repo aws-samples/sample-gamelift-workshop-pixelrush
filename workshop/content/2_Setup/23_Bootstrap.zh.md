@@ -50,6 +50,15 @@ npx cdk bootstrap
  ✅  Environment aws://123456789012/us-east-1 bootstrapped.
 ```
 
-{{% notice note %}}
+部署前先确认 bootstrap stack 已就位：
+
+```bash
+aws cloudformation describe-stacks --stack-name CDKToolkit \
+  --query "Stacks[0].StackStatus" --output text
+```
+
+预期：`CREATE_COMPLETE`（若之前已存在则为 `UPDATE_COMPLETE`）。
+
+{{% notice info %}}
 这个账号/区域以前 bootstrap 过？命令是幂等的——输出 `(no changes)` 后直接结束。
 {{% /notice %}}

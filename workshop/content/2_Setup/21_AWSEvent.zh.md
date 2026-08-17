@@ -18,13 +18,16 @@ weight: 21
 
 ## 2. 打开开发环境
 
-活动账号预置了一台**云上开发机**（浏览器里的 VS Code），所有工具已装好：
+活动账号预置了一台**云上开发机**（浏览器里的 VS Code）。它的地址和密码都在活动
+页面上——每个参与者 stack 的密码各不相同。
 
-1. 在活动页面找到 **Event Outputs** 区域。
-2. 打开 **CodeServerURL** 链接（一个 `cloudfront.net` 地址）——无需登录。
-3. 浏览器中的 VS Code 已把 workshop 仓库克隆在 `~/gamelift-workshop`。
+1. 在活动页面找到 **Event Outputs**，打开 **CodeServerURL**（一个
+   `cloudfront.net` 地址）。
+2. 用同一处 Event Outputs 里的 **CodeServerPassword** 登录。不要分享这个密码——
+   这台机器在你的临时账号中拥有部署权限。
+3. VS Code 打开后，workshop 仓库已克隆到 `~/gamelift-workshop`。
 
-在其中打开终端（`菜单 → Terminal → New Terminal`）并验证：
+打开终端（`菜单 → Terminal → New Terminal`）并验证：
 
 ```bash
 node --version && go version && cdk --version && aws sts get-caller-identity
@@ -33,8 +36,14 @@ node --version && go version && cdk --version && aws sts get-caller-identity
 四条命令应分别输出版本号 / 你的临时账号 ID。
 
 {{% notice tip %}}
-在本路径中，模块 3（GameLift Anywhere）里的"你的机器"指的就是**这台云上开发机**——
-其安全组已放行游戏端口，你的浏览器可以直连跑在它上面的游戏会话。
+code-server 源站只允许 CloudFront 访问，并且还需要每人独立的密码。如果登录失败，
+请从你自己的 Event Outputs 里重新复制 **CodeServerPassword**——每个人都不一样。
+{{% /notice %}}
+
+{{% notice info %}}
+如果你选做可选的**附录 A：GameLift Anywhere**，其中“你的机器”指的就是**这台云上开发机**。
+它的游戏端口默认关闭，附录会指导你只对当前公网 IPv4 地址临时开放
+TCP/UDP 1935，并在检查点完成后立即删除规则。主线流程不需要开放该端口。
 {{% /notice %}}
 
 继续前往 **2.3 初始化**（跳过路径 B）。

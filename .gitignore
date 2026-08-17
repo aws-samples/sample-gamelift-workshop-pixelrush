@@ -1,13 +1,16 @@
 # --- dependencies ---
 node_modules/
-
+docs/
 # --- build outputs ---
 frontend/dist/
 server/dist/
 infra/cdk.out/
 workshop/public/
+workshop/themes/
+workshop/.hugo_build.lock
 *.tsbuildinfo
 workshop-studio/
+workshop-studio-v2/
 
 # --- CDK / AWS local state ---
 infra/cdk.context.json

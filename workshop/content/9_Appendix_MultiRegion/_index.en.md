@@ -1,8 +1,8 @@
 ---
-title: "Appendix: Multi-Region (Optional)"
+title: "Appendix B: Multi-Region (Optional)"
 chapter: true
 weight: 90
 ---
-*Duration: ~20 minutes · requires Modules 1–5 completed*
+*Duration: ~20 minutes · requires Modules 1–4 completed*
 
-One fleet, three continents — serve players from the region closest to them.
+One fleet, more than one continent — serve players from the region closest to them.

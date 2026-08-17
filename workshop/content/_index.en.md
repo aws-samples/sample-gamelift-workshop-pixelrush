@@ -1,14 +1,11 @@
 ---
-
 title: "Hands-on Amazon GameLift Servers"
 chapter: true
 weight: 1
-
 ---
 
-### Deploy Your First Multiplayer Game
+## Deploy Your First Multiplayer Game
 
-<br>
 
 Welcome! In roughly **2 hours** you will deploy and operate a complete multiplayer
 online game on AWS — a retro pixel-art racing game called **Pixel Rush** — and use it
@@ -16,12 +13,13 @@ to learn the core capabilities of **Amazon GameLift Servers**:
 
 - What a dedicated **game server** is and why real-time multiplayer needs one
 - The GameLift **Server SDK lifecycle** that every hosted game implements
-- **GameLift Anywhere** — register your own machine as fleet compute for fast iteration
 - **Managed EC2 fleets** — production hosting with builds, runtime configs and queues
 - **FlexMatch** — rule-based matchmaking, tickets and event notifications
+- Optionally, **GameLift Anywhere** — register your own machine as fleet compute
+  for fast iteration (Appendix A)
 
 
-![Pixel Rush in action](/images/gl-ws-game.png)
+![Top-down pixel-art race: the red player car ahead of two grey rivals, with NPC cars labelled Speedy-Bot, Drift-Bot and Nitro-Bot behind, and a HUD reading POS 1/4](/images/gl-ws-game.png)
 At the end you will race against other participants on a shared arena, with every
 piece of the pipeline — matchmaking, session placement, realtime state — running on
 infrastructure **you deployed yourself**.
@@ -63,7 +61,7 @@ Every step is a copy-paste command or an AWS console observation.
 
 Developers, solutions architects, and technical game builders who want a
 hands-on introduction to hosting real-time multiplayer games on AWS. You do
-**not** need prior game-development or GameLift experience — the game is built
+**not** need prior game-development or GameLift Servers experience — the game is built
 for you.
 
 ## Prerequisites
@@ -77,9 +75,12 @@ for you.
 
 ## Cost
 
-Running this workshop in your own account costs roughly **$0.20–0.50/hour**
-(mainly one or two `c5.large` GameLift instances), well under **$1** for a
-2-hour sitting **if you complete the cleanup module**. See
+Almost all of the cost is the managed fleet: one `c5.large` GameLift instance at
+**$0.109/hour** in us-east-1 (the fleet may scale to two). The fleet only exists
+for the second half of the workshop, so a 2-hour sitting typically costs around
+**$0.15** and stays well under **$1** — **provided you complete the cleanup
+module**. Everything else (Lambda, DynamoDB, API Gateway, CloudFront) is
+pay-per-request and rounds to zero at workshop traffic. See
 [Amazon GameLift Servers pricing](https://aws.amazon.com/gamelift/pricing/) and
 [EC2 pricing](https://aws.amazon.com/ec2/pricing/) for details. AWS-hosted
 events run in a provided temporary account at no cost to you.
@@ -90,13 +91,17 @@ events run in a provided temporary account at no cost to you.
 | ----------------------------------------------------- | -------- |
 | 1. Introduction — why game servers, GameLift concepts | 10 min   |
 | 2. Setup — environment + deploy the game backend      | 20 min   |
-| 3. GameLift Anywhere — your machine becomes a fleet   | 25 min   |
-| 4. Managed Fleet — production hosting on EC2          | 25 min   |
-| 5. FlexMatch — rule-based matchmaking                 | 20 min   |
-| 6. Race Day — verify your server, then race everyone  | 15 min   |
-| 7. Cleanup                                            | 5 min    |
-| 8. Conclusion & next steps                            | 5 min    |
-| Appendix. Multi-region fleets (optional challenge)    | 20 min   |
+| 3. Managed Fleet — production hosting on EC2 + Server SDK | 30 min |
+| 4. FlexMatch — rule-based matchmaking                 | 20 min   |
+| 5. Race Day — verify your server, then race everyone  | 15 min   |
+| 6. Cleanup                                            | 5 min    |
+| 7. Conclusion & next steps                            | 5 min    |
+| Appendix A. GameLift Anywhere — your machine becomes fleet compute (optional) | 15 min |
+| Appendix B. Multi-region fleets (optional challenge)  | 20 min   |
+
+The core path is Modules 1–7 (~1 h 45 min). Both appendices are optional, build
+on the fleet you deploy in Module 3, and can be taken in either order — or
+skipped entirely.
 
 {{% notice warning %}}
 The sample code in this workshop is instructional content, not production-ready

@@ -1,13 +1,9 @@
-# Workshop Studio 版本（生成产物）
+# Workshop Studio 内容仓库
 
-本目录是 `workshop/`（Hugo 源）转换成 **AWS Workshop Studio 原生格式**的结果，
-用于发布到 Workshop Studio（catalog.workshops.aws）。
-
-**不要直接手改本目录的内容页** —— 改 `workshop/content/` 里的 Hugo 源，然后重新生成：
-
-```bash
-python3 workshop/scripts/convert-to-workshop-studio.py
-```
+本目录是独立维护的 **AWS Workshop Studio 原生内容**，用于发布到
+Workshop Studio（catalog.workshops.aws）。当前目录中的基础设施、IAM、配置和
+双语内容均为权威版本；需要调整 workshop 时请直接修改本目录并通过 Workshop
+Studio preview/event 测试。
 
 ## 结构
 

@@ -53,7 +53,16 @@ Expected output ends with:
  ✅  Environment aws://123456789012/us-east-1 bootstrapped.
 ```
 
-{{% notice note %}}
+Confirm the bootstrap stack is in place before deploying:
+
+```bash
+aws cloudformation describe-stacks --stack-name CDKToolkit \
+  --query "Stacks[0].StackStatus" --output text
+```
+
+Expected: `CREATE_COMPLETE` (or `UPDATE_COMPLETE` if it already existed).
+
+{{% notice info %}}
 Already bootstrapped this account/region before? The command is idempotent —
 it prints `(no changes)` and exits.
 {{% /notice %}}

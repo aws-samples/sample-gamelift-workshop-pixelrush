@@ -5,7 +5,7 @@ weight: 24
 
 ## 你要部署什么
 
-两个 CDK stack——游戏的 *Web* 半边，暂不涉及 GameLift：
+两个 CDK stack——游戏的 *Web* 半边，暂不涉及 Amazon GameLift Servers：
 
 - **PixelRushBackendStack** — API Gateway + Lambda + DynamoDB（登录、车库、商店、
   排行榜、匹配 API）以及用于通知的 WebSocket API
@@ -26,25 +26,36 @@ PixelRushBackendStack.ApiUrl      = https://xxxx.execute-api.us-east-1.amazonaws
 PixelRushBackendStack.WsNotifyUrl = wss://yyyy.execute-api.us-east-1.amazonaws.com/prod
 ```
 
+继续前先确认 stack 已完成：
+
+```bash
+aws cloudformation describe-stacks --stack-name PixelRushBackendStack \
+  --query "Stacks[0].StackStatus" --output text
+```
+
+预期：`CREATE_COMPLETE`（重新部署时为 `UPDATE_COMPLETE`）。
+
 {{% notice tip %}}
-把 **ApiUrl** 保存好——模块 6 中你会把它粘贴进游戏，验证自己部署的全链路。
+把 **ApiUrl** 保存好——模块 5 中你会把它粘贴进游戏，验证自己部署的全链路。
 {{% /notice %}}
 
 ## 2. 构建前端，再部署
 
-把 WebSocket 地址写入前端配置，构建站点，然后部署前端 stack（它会把构建产物
-上传到 CloudFront）：
+把 WebSocket 地址写入前端配置。直接从 stack 输出读取，避免复制粘贴出错：
 
 ```bash
-echo "{ \"wsNotifyUrl\": \"<粘贴-WsNotifyUrl>\" }" > ../frontend/public/config.json
-(cd ../frontend && npm run build)
-npx cdk deploy PixelRushFrontendStack --require-approval never
+WS_URL=$(aws cloudformation describe-stacks --stack-name PixelRushBackendStack \
+  --query "Stacks[0].Outputs[?OutputKey=='WsNotifyUrl'].OutputValue" --output text)
+echo "{ \"wsNotifyUrl\": \"$WS_URL\" }" > ../frontend/public/config.json
 ```
 
-构建前，先确认文件已写入且是合法 JSON——否则粘贴 URL 时的笔误会在后续步骤中静默失败：
+**构建前**先确认文件是合法 JSON 且抓到了真实的 `wss://` 地址——为空或格式错误会在后续步骤中静默失败：
 
 ```bash
 cat ../frontend/public/config.json | python3 -m json.tool
+grep -q '"wsNotifyUrl": *"wss://' ../frontend/public/config.json \
+  && echo "config OK" \
+  || echo "请修正 config.json —— wsNotifyUrl 为空；检查 stack 名称/区域后重跑上面的命令"
 ```
 
 预期——URL 被原样回显、格式化打印，且无解析错误：
@@ -55,13 +66,42 @@ cat ../frontend/public/config.json | python3 -m json.tool
 }
 ```
 
+JSON 校验通过后，构建站点并部署前端 stack（它会把构建产物上传到 CloudFront）：
+
+```bash
+(cd ../frontend && npm run build)
+test -d ../frontend/dist && echo "build OK: dist/ ready to publish"
+```
+
+预期——构建结束后，校验命令打印：
+
+```
+build OK: dist/ ready to publish
+```
+
+如果什么都没打印，说明构建失败：往上翻看报错、修好后重新执行，再继续部署。
+否则你会白等 5–10 分钟的 CloudFront 部署，最后发布的却是空内容。
+
+```bash
+npx cdk deploy PixelRushFrontendStack --require-approval never
+```
+
 输出站点地址：
 
 ```
 PixelRushFrontendStack.SiteUrl = https://zzzz.cloudfront.net
 ```
 
-{{% notice note %}}
+同样确认这个 stack 已完成：
+
+```bash
+aws cloudformation describe-stacks --stack-name PixelRushFrontendStack \
+  --query "Stacks[0].StackStatus" --output text
+```
+
+预期：`CREATE_COMPLETE`（重新部署则是 `UPDATE_COMPLETE`）。
+
+{{% notice info %}}
 之所以拆成两步、先构建再部署：前端 stack 发布的是 `frontend/dist` 目录，所以
 必须先让它存在。（若在构建前就部署前端，CDK 会警告 `frontend/dist not found`
 并上传一个空站点。）
@@ -79,7 +119,7 @@ CloudFront 是全球 CDN——新分发要 **5–10 分钟**才能部署到所�
 
 1. 登录页上，服务器保持默认的 **☁️ AWS ARENA** 即可。在*你自己的* SiteUrl 上，
    它指的就是"本站点自己的后端"——也就是你刚部署的那个。（**🔧 MY SERVER**
-   选项用于把*别人的*前端指向你的后端，模块 6 才会用到，这里不用。）
+   选项用于把*别人的*前端指向你的后端，模块 5 才会用到，这里不用。）
 2. 输入任意车手名 + workshop 密码 `gamelift` → **START ENGINE**
 3. 进入大厅，作为 1 级新手，随机获得一辆车和金币余额
 4. 逛逛**车库**和**商店**——金币够的话买辆车！
