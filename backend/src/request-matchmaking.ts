@@ -1,7 +1,7 @@
 import {
   GameLiftClient, StartMatchmakingCommand, DescribeMatchmakingCommand,
   SearchGameSessionsCommand, CreateGameSessionCommand, CreatePlayerSessionCommand,
-  DescribeFleetAttributesCommand,
+  DescribeFleetAttributesCommand, DescribeGameSessionsCommand,
 } from '@aws-sdk/client-gamelift';
 import { GetCommand, PutCommand } from '@aws-sdk/lib-dynamodb';
 import type { APIGatewayProxyEventV2, APIGatewayProxyResultV2 } from 'aws-lambda';
@@ -131,6 +131,24 @@ async function resolveFleetId(): Promise<string> {
   return cachedFleetId;
 }
 
+// Kept well under the 10s Lambda timeout: the lookups before this point take
+// 1-2s on a cold start.
+const ACTIVATION_WAIT_MS = 6000;
+const ACTIVATION_POLL_MS = 250;
+
+/** Poll a freshly created session until ACTIVE. False if it failed or timed out. */
+async function waitForActive(gameSessionId: string): Promise<boolean> {
+  const deadline = Date.now() + ACTIVATION_WAIT_MS;
+  for (;;) {
+    const res = await gamelift.send(new DescribeGameSessionsCommand({ GameSessionId: gameSessionId }));
+    const status = res.GameSessions?.[0]?.Status;
+    if (status === 'ACTIVE') return true;
+    if (status !== 'ACTIVATING') return false; // TERMINATED / ERROR — won't recover
+    if (Date.now() + ACTIVATION_POLL_MS >= deadline) return false;
+    await new Promise((resolve) => setTimeout(resolve, ACTIVATION_POLL_MS));
+  }
+}
+
 async function openPlacement(
   playerId: string, name: string, trackId: string, size: number,
 ): Promise<APIGatewayProxyResultV2> {
@@ -163,6 +181,12 @@ async function openPlacement(
       GameProperties: [{ Key: 'trackId', Value: trackId }],
     })).catch((e) => { throw new Error(`create session: ${(e as Error).message}`); });
     session = created.GameSession;
+    // CreateGameSession returns while the session is still ACTIVATING (the
+    // server process hasn't called ActivateGameSession yet), and
+    // CreatePlayerSession only accepts ACTIVE sessions — so wait for it.
+    if (session?.GameSessionId && !(await waitForActive(session.GameSessionId))) {
+      return bad('game session is still starting, retry shortly', 503);
+    }
   }
 
   if (!session?.GameSessionId) return bad('no session available', 503);
